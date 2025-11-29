@@ -1164,4 +1164,3 @@ export class MeshVisualizers {
         return mesh;
     }
 }
-

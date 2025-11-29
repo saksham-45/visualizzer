@@ -1,7 +1,4 @@
-/**
- * Main Application Module
- * Orchestrates all components
- */
+
 import { AudioCapture } from './audioCapture.js';
 import { AudioAnalyzer } from './audioAnalyzer.js';
 import { MeshVisualizers } from './meshVisualizers.js';

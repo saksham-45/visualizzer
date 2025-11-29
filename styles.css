@@ -15,28 +15,69 @@ body {
     color: #fff;
 }
 
-.container {
+/* Fullscreen visualizer background */
+body, html {
     width: 100%;
-    max-width: 1400px;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 30px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    height: 100%;
+    overflow: hidden;
+}
+
+/* Hide UI until mouse movement */
+.ui-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+}
+
+.show-ui .ui-overlay {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.visualizer-fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: -1;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: #fff;
+}
+
+.container {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    background: transparent;
+    padding: 20px;
+    pointer-events: none;
 }
 
 .header {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+    pointer-events: auto;
 }
 
 .header h1 {
     font-size: 2.5em;
     margin-bottom: 20px;
     text-align: center;
-    background: linear-gradient(45deg, #fff, #e0e0e0);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #000; /* plain black heading text (no ribbon) */
 }
 
 .controls {
@@ -45,9 +86,19 @@ body {
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
+    pointer-events: auto;
+}
+
+/* Trippy greyscale UI style */
+.controls, .header, .select, .btn, .checkbox-label, .info-panel {
+    /* Remove forced grayscale/ribbon look for option fonts */
+    filter: none;
+    backdrop-filter: none;
+    color: #000; /* black fonts for options */
 }
 
 .btn {
+    color: #000;
     padding: 12px 24px;
     border: none;
     border-radius: 8px;
@@ -60,8 +111,8 @@ body {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
+    background: linear-gradient(135deg, #e6e6e6 0%, #cfcfcf 100%);
+    color: #000;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -87,23 +138,22 @@ body {
 
 .select {
     padding: 12px 20px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(0, 0, 0, 0.12);
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.3);
-    color: white;
+    background: rgba(255, 255, 255, 0.95);
+    color: #000;
     font-size: 16px;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .select:hover {
-    border-color: rgba(255, 255, 255, 0.5);
-    background: rgba(0, 0, 0, 0.4);
+    border-color: rgba(0, 0, 0, 0.2);
 }
 
 .select option {
-    background: #1a1a1a;
-    color: white;
+    background: #fff;
+    color: #000;
 }
 
 .checkbox-label {
@@ -131,25 +181,28 @@ body {
 
 #visualizerCanvas {
     display: block;
-    width: 100%;
-    height: 70vh;
-    min-height: 600px;
-    background: radial-gradient(ellipse at center, rgba(102, 126, 234, 0.05) 0%, rgba(0, 0, 0, 0.5) 100%);
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(ellipse at center, rgba(102, 126, 234, 0.05) 0%, rgba(0, 0, 0, 0.6) 100%);
+    z-index: -1;
 }
 
 .info-panel {
     position: absolute;
     top: 20px;
     right: 20px;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(10px);
-    padding: 15px 20px;
-    border-radius: 10px;
+    background: rgba(20, 20, 20, 0.4);
+    backdrop-filter: blur(12px);
+    padding: 12px 18px;
+    border-radius: 12px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     min-width: 200px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: auto;
 }
 
 .info-item {
@@ -168,36 +221,6 @@ body {
     color: #fff;
     font-weight: 600;
     text-align: right;
-}
-
-/* Fullscreen styles - only visualizer visible */
-.container:fullscreen {
-    padding: 0;
-    border-radius: 0;
-    max-width: 100%;
-    background: #000;
-}
-
-.container:fullscreen .header {
-    display: none;
-}
-
-.container:fullscreen .canvas-container {
-    height: 100vh;
-    width: 100vw;
-    border-radius: 0;
-    position: relative;
-}
-
-.container:fullscreen #visualizerCanvas {
-    height: 100vh;
-    width: 100vw;
-    min-height: 100vh;
-    min-width: 100vw;
-}
-
-.container:fullscreen .info-panel {
-    display: none;
 }
 
 /* Exit fullscreen button styling */
@@ -246,3 +269,32 @@ body {
     }
 }
 
+/* Hide cursor & UI for immersion */
+body.hide-ui {
+    cursor: none;
+}
+
+body.hide-ui .ui-overlay,
+body.hide-ui .container,
+body.hide-ui .info-panel {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Keep the start button visible even when UI auto-hides */
+#startBtn, .start-btn, .btn-primary.start {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10001;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+body.hide-ui #startBtn,
+body.hide-ui .start-btn,
+body.hide-ui .btn-primary.start {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
