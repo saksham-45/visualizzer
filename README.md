@@ -4,7 +4,7 @@ A comprehensive, Apple Music-style audio visualizer system that intelligently ad
 
 ## Features
 
-### 🎨 Multiple Visualization Types
+###  Multiple Visualization Types
 
 1. **Wave Form** - Classic waveform visualization, perfect for rhythmic content
 2. **Circle Wave** - Circular wave derived from audio, ideal for bass-heavy tracks
@@ -13,7 +13,7 @@ A comprehensive, Apple Music-style audio visualizer system that intelligently ad
 5. **Spiral Wave** - Flowing spiral visualization, excellent for melodic music
 6. **Spectrum Circle** - Circular frequency spectrum, optimal for full-spectrum audio
 
-### 🧠 Intelligent Visualizer Selection
+### Intelligent Visualizer Selection
 
 The system analyzes your audio in real-time and automatically selects the best visualizer based on:
 
@@ -29,7 +29,7 @@ The system analyzes your audio in real-time and automatically selects the best v
 - **Microphone** - Real-time audio from your microphone
 - **System Audio** - Capture audio from your system (requires browser permission to share tab/window audio)
 
-### ✨ Smooth Transitions
+###  Smooth Transitions
 
 Visualizers transition smoothly between each other with fade effects, creating a seamless experience.
 
