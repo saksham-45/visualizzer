@@ -1542,15 +1542,19 @@ export class MeshVisualizers {
         for (let ring = 0; ring < rings; ring++) {
             const ringRadius = (ring + 1) / rings * maxRadius * 0.8;
             const segments = 80 + ring * 5;
+            let avgEnergy = 0;
+            let energyCount = 0;
             
             this.ctx.beginPath();
             for (let i = 0; i <= segments; i++) {
                 const t = i / segments;
-                const freqIndex = Math.floor(t * bufferLength);
+                const freqIndex = Math.max(0, Math.min(bufferLength - 1, Math.floor(t * bufferLength)));
                 const energy = frequencyData[freqIndex] / 255;
+                avgEnergy += energy;
+                energyCount++;
                 
                 const angle = t * Math.PI * 2 + this.time * (1.2 + ring * 0.25) * (ring % 2 === 0 ? 1 : -1);
-                const radius = ringRadius + Math.sin(t * Math.PI * 8 + this.time * 4) * 35 * energy;
+                const radius = Math.max(0, ringRadius + Math.sin(t * Math.PI * 8 + this.time * 4) * 35 * energy);
                 
                 const x = centerX + Math.cos(angle) * radius;
                 const y = centerY + Math.sin(angle) * radius;
@@ -1560,9 +1564,10 @@ export class MeshVisualizers {
             }
             this.ctx.closePath();
             
+            avgEnergy = avgEnergy / energyCount;
             const hue = (ring * 30 + this.time * 30) % 360;
             this.ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.8)`;
-            this.ctx.lineWidth = 2 + energy * 3;
+            this.ctx.lineWidth = Math.max(1, 2 + avgEnergy * 3);
             this.ctx.stroke();
             this.ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.08)`;
             this.ctx.fill();
@@ -1573,11 +1578,15 @@ export class MeshVisualizers {
             const yBase = this.height * (0.1 + wave * 0.11);
             
             this.ctx.beginPath();
+            let waveEnergy = 0;
+            let waveCount = 0;
             for (let x = 0; x <= this.width; x += 2) {
                 const t = x / this.width;
-                const dataIndex = Math.floor(t * bufferLength);
+                const dataIndex = Math.max(0, Math.min(bufferLength - 1, Math.floor(t * bufferLength)));
                 const energy = frequencyData[dataIndex] / 255;
                 const waveData = (timeData[dataIndex] / 128.0 - 1);
+                waveEnergy += energy;
+                waveCount++;
                 
                 const y = yBase + Math.sin(t * Math.PI * 8 + this.time * 3 + wave * 0.4) * 50 * energy + waveData * 60;
                 
@@ -1585,9 +1594,10 @@ export class MeshVisualizers {
                 else this.ctx.lineTo(x, y);
             }
             
+            waveEnergy = waveEnergy / waveCount;
             const hue = (wave * 45 + this.time * 40) % 360;
             this.ctx.strokeStyle = `hsla(${hue}, 90%, 55%, 0.7)`;
-            this.ctx.lineWidth = 3 + energy * 5;
+            this.ctx.lineWidth = Math.max(1, 3 + waveEnergy * 5);
             this.ctx.stroke();
         }
         

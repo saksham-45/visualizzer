@@ -17,6 +17,12 @@ class VisualizerApp {
         this.uiVisible = true;
         this.UI_HIDE_DELAY = 3000;
         
+        this.transitionParticles = [];
+        this.isTransitioning = false;
+        this.transitionDuration = 0.5;
+        this.transitionProgress = 0;
+        this.lastVizType = null;
+        
         this.initializeElements();
         this.attachEventListeners();
         this.setupAutoHideUI();
