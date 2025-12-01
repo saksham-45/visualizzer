@@ -9,7 +9,8 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 8000;
+const PORT = process.env.PORT || 5000;
+const HOST = '0.0.0.0';
 const MIME_TYPES = {
     '.html': 'text/html',
     '.js': 'application/javascript',
@@ -46,38 +47,21 @@ const server = http.createServer((req, res) => {
             res.writeHead(200, {
                 'Content-Type': contentType,
                 'Access-Control-Allow-Origin': '*',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             });
             res.end(content, 'utf-8');
         }
     });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, HOST, () => {
     console.log('='.repeat(60));
     console.log('🎵 Audio Visualizer Server');
     console.log('='.repeat(60));
-    console.log(`\nServer running at: http://localhost:${PORT}/index.html`);
+    console.log(`\nServer running at: http://${HOST}:${PORT}`);
     console.log('\nPress Ctrl+C to stop the server');
     console.log('='.repeat(60));
-    
-    // Try to open browser (works on macOS and Linux)
-    const { exec } = require('child_process');
-    const url = `http://localhost:${PORT}/index.html`;
-    
-    const platform = process.platform;
-    let command;
-    if (platform === 'darwin') {
-        command = `open ${url}`;
-    } else if (platform === 'win32') {
-        command = `start ${url}`;
-    } else {
-        command = `xdg-open ${url}`;
-    }
-    
-    exec(command, (error) => {
-        if (error) {
-            console.log(`\nPlease open ${url} in your browser manually`);
-        }
-    });
 });
 
