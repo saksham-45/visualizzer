@@ -38,6 +38,19 @@ An advanced, real-time audio visualizer web application that creates beautiful v
 
 ## Recent Changes
 
+### December 1, 2025 - UI Auto-Hide & Visualizer Fixes
+- Implemented YouTube-style auto-hide UI: header and controls fade out after 3 seconds of inactivity during playback
+- Auto-hide only activates when visualizer is running (not before clicking Start)
+- UI reappears on any mouse/keyboard/touch activity
+- Fixed 7 broken visualizers that were all rendering identical mesh planes:
+  - **Double Spiral (spiral1)**: Two distinct intertwined spiral arms with dots
+  - **Chaotic Spiral (spiral2)**: Explosive particle spiral with connecting lines
+  - **Nested Spirals (spiral3)**: Multiple concentric rotating rings
+  - **Spiral Trails (spiral4)**: Particles with fading trails and glowing heads
+  - **Tracing Waves**: Horizontal flowing gradient waveforms
+  - **Crossing Planes**: Intersecting grid lines with nodes at intersections
+  - **Combined Effects**: Mix of rings, waves, and particles
+
 ### December 1, 2025 - Replit Import Setup
 - Modified `server.js` to run on port 5000 with host binding to `0.0.0.0` for Replit compatibility
 - Added cache control headers to prevent browser caching issues in the Replit iframe environment
