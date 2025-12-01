@@ -866,35 +866,140 @@ export class MeshVisualizers {
      * Morph between two mesh visualizers
      */
     renderMorphingMesh(fromType, toType, t, audioData, metadata) {
-        const cols = this.meshResolution;
-        const rows = Math.floor(this.meshResolution * (this.height / this.width));
+        const { frequencyData } = audioData;
         
-        let fromMesh = this.createMesh(cols, rows);
-        let toMesh = this.createMesh(cols, rows);
-        
-        // Deform both meshes
-        fromMesh = this.getDeformedMesh(fromType, fromMesh, audioData, metadata);
-        toMesh = this.getDeformedMesh(toType, toMesh, audioData, metadata);
-        
-        // Interpolate between meshes
-        const morphedMesh = [];
-        for (let y = 0; y < fromMesh.length; y++) {
-            const row = [];
-            for (let x = 0; x < fromMesh[y].length; x++) {
-                const fromP = fromMesh[y][x];
-                const toP = toMesh[y][x];
-                row.push({
-                    x: fromP.x + (toP.x - fromP.x) * t,
-                    y: fromP.y + (toP.y - fromP.y) * t,
-                    z: fromP.z + (toP.z - fromP.z) * t,
-                    baseX: fromP.baseX,
-                    baseY: fromP.baseY
-                });
-            }
-            morphedMesh.push(row);
+        // Initialize transition particles on first call
+        if (!this.transitionParticles || this.transitionParticles.length === 0) {
+            this.generateTransitionParticles(fromType, toType, audioData, metadata);
         }
         
-        this.renderMeshAsCloth(morphedMesh, audioData, metadata);
+        // Update and render transition particles
+        this.updateTransitionParticles(t, audioData, metadata);
+        this.renderTransitionParticles(t, audioData, metadata);
+        
+        // Blend toward target visualizer at the end
+        if (t > 0.7) {
+            const blendAlpha = (t - 0.7) / 0.3; // 0 to 1 over final 30%
+            this.ctx.globalAlpha = blendAlpha * 0.6;
+            this.renderMeshVisualizer(toType, audioData, metadata);
+            this.ctx.globalAlpha = 1;
+        }
+    }
+    
+    generateTransitionParticles(fromType, toType, audioData, metadata) {
+        this.transitionParticles = [];
+        const particleCount = 150;
+        
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const angle = (i / particleCount) * Math.PI * 2;
+            const radius = Math.min(this.width, this.height) * (0.2 + Math.random() * 0.3);
+            
+            // Start position (scattered around center)
+            const startX = centerX + Math.cos(angle) * radius * (0.5 + Math.random() * 0.5);
+            const startY = centerY + Math.sin(angle) * radius * (0.5 + Math.random() * 0.5);
+            
+            // Target position (will be various based on target viz)
+            const targetRadius = Math.min(this.width, this.height) * (0.1 + Math.random() * 0.4);
+            const targetAngle = angle + (Math.random() - 0.5) * Math.PI;
+            const targetX = centerX + Math.cos(targetAngle) * targetRadius;
+            const targetY = centerY + Math.sin(targetAngle) * targetRadius;
+            
+            this.transitionParticles.push({
+                x: startX,
+                y: startY,
+                targetX: targetX,
+                targetY: targetY,
+                vx: 0,
+                vy: 0,
+                size: 2 + Math.random() * 4,
+                life: Math.random() * 0.5,
+                hue: Math.random() * 360,
+                wave: Math.random() * Math.PI * 2
+            });
+        }
+    }
+    
+    updateTransitionParticles(t, audioData, metadata) {
+        const { frequencyData } = audioData;
+        const energy = (frequencyData[100] + frequencyData[500]) / 510;
+        
+        this.transitionParticles.forEach((p, i) => {
+            // Easing function for smooth motion
+            const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            
+            // Target position with audio influence
+            const dx = p.targetX - p.x;
+            const dy = p.targetY - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            
+            // Move particles toward target with audio-driven acceleration
+            const audioBoost = 1 + energy * 3;
+            const speed = (0.02 + ease * 0.08) * audioBoost;
+            
+            if (dist > 0.5) {
+                p.x += (dx / dist) * speed * this.width;
+                p.y += (dy / dist) * speed * this.height;
+            }
+            
+            // Wave motion
+            p.wave += 0.05 + energy * 0.1;
+            const waveX = Math.sin(p.wave) * 5 * energy;
+            const waveY = Math.cos(p.wave) * 5 * energy;
+            
+            p.x += waveX;
+            p.y += waveY;
+            
+            // Update life and hue
+            p.life = t;
+            p.hue = (p.hue + energy * 5) % 360;
+        });
+    }
+    
+    renderTransitionParticles(t, audioData, metadata) {
+        const { frequencyData } = audioData;
+        
+        this.transitionParticles.forEach((p, i) => {
+            // Only render if within bounds
+            if (p.x < -50 || p.x > this.width + 50 || p.y < -50 || p.y > this.height + 50) {
+                return;
+            }
+            
+            // Size pulses with audio
+            const energy = frequencyData[Math.floor((i / this.transitionParticles.length) * 255)] / 255;
+            const size = Math.abs(p.size * (1 + energy * 0.5));
+            
+            // Opacity increases during transition
+            const alpha = 0.4 + t * 0.6 + energy * 0.3;
+            
+            // Draw particle with glow
+            this.ctx.fillStyle = `hsla(${p.hue}, 100%, ${60 + energy * 20}%, ${alpha})`;
+            this.ctx.shadowColor = `hsla(${p.hue}, 100%, 70%, ${alpha * 0.7})`;
+            this.ctx.shadowBlur = 10 + energy * 15;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Draw trails
+            if (t > 0.2) {
+                const trailAlpha = (t - 0.2) * alpha * 0.3;
+                this.ctx.strokeStyle = `hsla(${p.hue}, 100%, 70%, ${trailAlpha})`;
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                
+                const prevX = p.x - (p.targetX - p.x) * 0.05;
+                const prevY = p.y - (p.targetY - p.y) * 0.05;
+                
+                this.ctx.moveTo(prevX, prevY);
+                this.ctx.lineTo(p.x, p.y);
+                this.ctx.stroke();
+            }
+        });
+        
+        this.ctx.shadowBlur = 0;
     }
 
     getDeformedMesh(type, mesh, audioData, metadata) {
