@@ -13,8 +13,13 @@ class VisualizerApp {
         this.animationId = null;
         this.isRunning = false;
         
+        this.uiHideTimeout = null;
+        this.uiVisible = true;
+        this.UI_HIDE_DELAY = 3000;
+        
         this.initializeElements();
         this.attachEventListeners();
+        this.setupAutoHideUI();
     }
 
     initializeElements() {
@@ -26,12 +31,50 @@ class VisualizerApp {
         this.autoModeCheckbox = document.getElementById('autoMode');
         this.canvas = document.getElementById('visualizerCanvas');
         this.container = document.querySelector('.container');
+        this.header = document.querySelector('.header');
+        this.infoPanel = document.querySelector('.info-panel');
         
-        // Info display elements
         this.currentVizSpan = document.getElementById('currentViz');
         this.freqPeakSpan = document.getElementById('freqPeak');
         this.amplitudeSpan = document.getElementById('amplitude');
         this.loudnessSpan = document.getElementById('loudness');
+    }
+
+    setupAutoHideUI() {
+        document.addEventListener('mousemove', () => this.onUserActivity());
+        document.addEventListener('mousedown', () => this.onUserActivity());
+        document.addEventListener('keydown', () => this.onUserActivity());
+        document.addEventListener('touchstart', () => this.onUserActivity());
+    }
+
+    onUserActivity() {
+        if (this.isRunning) {
+            this.showUI();
+            this.startUIHideTimer();
+        }
+    }
+
+    showUI() {
+        if (!this.uiVisible) {
+            this.uiVisible = true;
+            document.body.classList.remove('hide-ui');
+        }
+    }
+
+    hideUI() {
+        if (this.isRunning) {
+            this.uiVisible = false;
+            document.body.classList.add('hide-ui');
+        }
+    }
+
+    startUIHideTimer() {
+        if (this.uiHideTimeout) {
+            clearTimeout(this.uiHideTimeout);
+        }
+        if (this.isRunning) {
+            this.uiHideTimeout = setTimeout(() => this.hideUI(), this.UI_HIDE_DELAY);
+        }
     }
 
     attachEventListeners() {
@@ -44,13 +87,10 @@ class VisualizerApp {
             }
         });
         
-        // Listen for fullscreen changes
         document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
         document.addEventListener('webkitfullscreenchange', () => this.handleFullscreenChange());
         document.addEventListener('msfullscreenchange', () => this.handleFullscreenChange());
         
-        // Add click handler for exit button (CSS ::before pseudo-element)
-        // We'll use a different approach - add an actual exit button
         this.createExitButton();
     }
 
@@ -176,11 +216,11 @@ class VisualizerApp {
                 }
             }
             
-            // Start animation loop
             this.isRunning = true;
             this.animate();
             
-            // Update UI
+            this.startUIHideTimer();
+            
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
             this.startBtn.textContent = 'Start';
@@ -205,19 +245,22 @@ class VisualizerApp {
         this.visualizers = null;
         this.audioAnalyzer = null;
         
-        // Clear canvas
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Update UI
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
         
-        // Reset info display
         this.currentVizSpan.textContent = 'None';
         this.freqPeakSpan.textContent = '0 Hz';
         this.amplitudeSpan.textContent = '0%';
         this.loudnessSpan.textContent = '0 dB';
+        
+        document.body.classList.remove('hide-ui');
+        this.uiVisible = true;
+        if (this.uiHideTimeout) {
+            clearTimeout(this.uiHideTimeout);
+        }
     }
 
     animate() {

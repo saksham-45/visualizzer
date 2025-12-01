@@ -238,6 +238,27 @@ export class MeshVisualizers {
             case 'spiral':
                 mesh = this.deformSpiralMesh(mesh, audioData, metadata);
                 break;
+            case 'spiral1':
+                this.renderDoubleSpiral(audioData, metadata);
+                return;
+            case 'spiral2':
+                this.renderChaoticSpiral(audioData, metadata);
+                return;
+            case 'spiral3':
+                this.renderNestedSpirals(audioData, metadata);
+                return;
+            case 'spiral4':
+                this.renderSpiralTrails(audioData, metadata);
+                return;
+            case 'tracing':
+                this.renderTracingWaves(audioData, metadata);
+                return;
+            case 'crossing':
+                this.renderCrossingPlanes(audioData, metadata);
+                return;
+            case 'combined':
+                this.renderCombinedEffects(audioData, metadata);
+                return;
             case 'spectrum':
                 mesh = this.deformSpectrumMesh(mesh, audioData, metadata);
                 break;
@@ -246,16 +267,16 @@ export class MeshVisualizers {
                 break;
             case 'kaleidoscope':
                 this.renderKaleidoscope(audioData, metadata);
-                return; // Special rendering, don't use mesh
+                return;
             case 'mandala':
                 this.renderMandala(audioData, metadata);
-                return; // Special rendering
+                return;
             case 'fractal':
                 this.renderFractal(audioData, metadata);
-                return; // Special rendering
+                return;
             case 'tunnel':
                 this.renderTunnel(audioData, metadata);
-                return; // Special rendering
+                return;
             case 'morphing':
                 mesh = this.deformMorphingMesh(mesh, audioData, metadata);
                 break;
@@ -1142,13 +1163,11 @@ export class MeshVisualizers {
                 const freqIndex = Math.floor(((x + y) / (mesh[y].length + mesh.length)) * bufferLength);
                 const energy = frequencyData[freqIndex] / 255;
                 
-                // Multiple distortion layers
                 const distortion1 = Math.sin(point.baseX * 0.01 + this.time * 2) * amplitude * energy;
                 const distortion2 = Math.cos(point.baseY * 0.01 + this.time * 1.5) * amplitude * energy;
                 const distortion3 = Math.sin((point.baseX + point.baseY) * 0.02 + this.time * 3) * amplitude * energy * 0.5;
                 const wave = (timeData[freqIndex] / 128.0 - 1) * amplitude * energy;
                 
-                // Radial distortion
                 const centerX = this.width / 2;
                 const centerY = this.height / 2;
                 const dx = point.baseX - centerX;
@@ -1162,5 +1181,424 @@ export class MeshVisualizers {
             }
         }
         return mesh;
+    }
+
+    /**
+     * Double Spiral - Two distinct intertwined spiral arms
+     */
+    renderDoubleSpiral(audioData, metadata) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const maxRadius = Math.min(this.width, this.height) * 0.45;
+        
+        for (let arm = 0; arm < 2; arm++) {
+            const armOffset = arm * Math.PI;
+            const direction = arm === 0 ? 1 : -1;
+            const points = 200;
+            
+            this.ctx.beginPath();
+            
+            for (let i = 0; i < points; i++) {
+                const t = i / points;
+                const freqIndex = Math.floor(t * bufferLength);
+                const energy = frequencyData[freqIndex] / 255;
+                const wave = (timeData[freqIndex] / 128.0 - 1) * 50;
+                
+                const angle = t * Math.PI * 6 + this.time * 2 * direction + armOffset;
+                const radius = t * maxRadius + wave * energy + Math.sin(t * 10 + this.time * 3) * 20 * energy;
+                
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                if (i === 0) {
+                    this.ctx.moveTo(x, y);
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+            
+            const hue = (arm * 180 + this.time * 30) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.8)`;
+            this.ctx.lineWidth = 3 + metadata.amplitude * 5;
+            this.ctx.stroke();
+            
+            for (let i = 0; i < points; i += 5) {
+                const t = i / points;
+                const freqIndex = Math.floor(t * bufferLength);
+                const energy = frequencyData[freqIndex] / 255;
+                const wave = (timeData[freqIndex] / 128.0 - 1) * 50;
+                
+                const angle = t * Math.PI * 6 + this.time * 2 * direction + armOffset;
+                const radius = t * maxRadius + wave * energy + Math.sin(t * 10 + this.time * 3) * 20 * energy;
+                
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                const dotHue = (hue + t * 60) % 360;
+                this.ctx.fillStyle = `hsla(${dotHue}, 100%, 70%, ${0.5 + energy * 0.5})`;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 2 + energy * 8, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        }
+    }
+
+    /**
+     * Chaotic Spiral - Explosive, unpredictable particle spiral
+     */
+    renderChaoticSpiral(audioData, metadata) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const maxRadius = Math.min(this.width, this.height) * 0.5;
+        const particleCount = 300;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const freqIndex = Math.floor((i / particleCount) * bufferLength);
+            const energy = frequencyData[freqIndex] / 255;
+            const wave = (timeData[freqIndex] / 128.0 - 1);
+            
+            const baseAngle = (i / particleCount) * Math.PI * 8 + this.time * 3;
+            const chaos = Math.sin(i * 0.5 + this.time * 5) * 0.5 + Math.cos(i * 0.3 + this.time * 4) * 0.5;
+            const angle = baseAngle + chaos * Math.PI * 0.5;
+            
+            const baseRadius = (i / particleCount) * maxRadius;
+            const radiusChaos = Math.sin(i * 0.2 + this.time * 6) * maxRadius * 0.2 * energy;
+            const radius = baseRadius + radiusChaos + wave * 30;
+            
+            const x = centerX + Math.cos(angle) * radius;
+            const y = centerY + Math.sin(angle) * radius;
+            
+            const hue = (i + this.time * 100) % 360;
+            const size = 2 + energy * 12 + Math.abs(chaos) * 5;
+            
+            this.ctx.fillStyle = `hsla(${hue}, 100%, ${50 + energy * 30}%, ${0.4 + energy * 0.6})`;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, size, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            if (energy > 0.5 && Math.random() > 0.7) {
+                this.ctx.strokeStyle = `hsla(${hue}, 100%, 80%, 0.3)`;
+                this.ctx.lineWidth = 1;
+                this.ctx.beginPath();
+                this.ctx.moveTo(centerX, centerY);
+                this.ctx.lineTo(x, y);
+                this.ctx.stroke();
+            }
+        }
+    }
+
+    /**
+     * Nested Spirals - Concentric spiral rings
+     */
+    renderNestedSpirals(audioData, metadata) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const rings = 8;
+        const maxRadius = Math.min(this.width, this.height) * 0.45;
+        
+        for (let ring = 0; ring < rings; ring++) {
+            const ringRadius = (ring + 1) / rings * maxRadius;
+            const segments = 60 + ring * 10;
+            const direction = ring % 2 === 0 ? 1 : -1;
+            const speed = 1 + ring * 0.3;
+            
+            this.ctx.beginPath();
+            
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const freqIndex = Math.floor(t * bufferLength);
+                const energy = frequencyData[freqIndex] / 255;
+                const wave = (timeData[freqIndex] / 128.0 - 1) * 30;
+                
+                const angle = t * Math.PI * 2 + this.time * speed * direction;
+                const radiusOffset = Math.sin(t * Math.PI * 4 + this.time * 2 + ring) * 30 * energy;
+                const radius = ringRadius + wave + radiusOffset;
+                
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                if (i === 0) {
+                    this.ctx.moveTo(x, y);
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+            
+            this.ctx.closePath();
+            const hue = (ring * 45 + this.time * 20) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.8)`;
+            this.ctx.lineWidth = 2 + metadata.amplitude * 3;
+            this.ctx.stroke();
+            
+            this.ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.1)`;
+            this.ctx.fill();
+        }
+    }
+
+    /**
+     * Spiral Trails - Particles leaving spiral trails
+     */
+    renderSpiralTrails(audioData, metadata) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const maxRadius = Math.min(this.width, this.height) * 0.45;
+        const numTrails = 6;
+        const trailLength = 30;
+        
+        for (let trail = 0; trail < numTrails; trail++) {
+            const trailOffset = (trail / numTrails) * Math.PI * 2;
+            const freqIndex = Math.floor((trail / numTrails) * bufferLength);
+            const energy = frequencyData[freqIndex] / 255;
+            
+            const headAngle = this.time * 2 + trailOffset;
+            const headRadius = maxRadius * (0.3 + energy * 0.7);
+            
+            for (let i = 0; i < trailLength; i++) {
+                const age = i / trailLength;
+                const pastAngle = headAngle - age * Math.PI * 0.5;
+                const pastRadius = headRadius * (1 - age * 0.3);
+                
+                const waveIndex = Math.floor(age * bufferLength);
+                const wave = (timeData[waveIndex] / 128.0 - 1) * 20;
+                
+                const x = centerX + Math.cos(pastAngle) * (pastRadius + wave);
+                const y = centerY + Math.sin(pastAngle) * (pastRadius + wave);
+                
+                const size = (1 - age) * (5 + energy * 15);
+                const alpha = (1 - age) * (0.5 + energy * 0.5);
+                const hue = (trail * 60 + age * 30 + this.time * 40) % 360;
+                
+                this.ctx.fillStyle = `hsla(${hue}, 100%, ${50 + energy * 30}%, ${alpha})`;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, size, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            
+            const headX = centerX + Math.cos(headAngle) * headRadius;
+            const headY = centerY + Math.sin(headAngle) * headRadius;
+            const headHue = (trail * 60 + this.time * 40) % 360;
+            
+            this.ctx.fillStyle = `hsla(${headHue}, 100%, 80%, 1)`;
+            this.ctx.shadowColor = `hsla(${headHue}, 100%, 70%, 1)`;
+            this.ctx.shadowBlur = 20;
+            this.ctx.beginPath();
+            this.ctx.arc(headX, headY, 8 + energy * 12, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.shadowBlur = 0;
+        }
+    }
+
+    /**
+     * Tracing Waves - Horizontal waveforms that flow across screen
+     */
+    renderTracingWaves(audioData, metadata) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        const numWaves = 8;
+        const amplitude = this.height * 0.1;
+        
+        for (let wave = 0; wave < numWaves; wave++) {
+            const yBase = (wave + 1) / (numWaves + 1) * this.height;
+            const freqBand = Math.floor((wave / numWaves) * bufferLength);
+            const energy = frequencyData[freqBand] / 255;
+            
+            this.ctx.beginPath();
+            
+            for (let x = 0; x <= this.width; x += 3) {
+                const t = x / this.width;
+                const dataIndex = Math.floor(t * bufferLength);
+                const waveData = (timeData[dataIndex] / 128.0 - 1);
+                
+                const flow = Math.sin(t * Math.PI * 4 + this.time * 3 + wave) * amplitude * energy;
+                const secondary = Math.sin(t * Math.PI * 8 + this.time * 5 - wave * 0.5) * amplitude * 0.3 * energy;
+                const audioWave = waveData * amplitude * energy;
+                
+                const y = yBase + flow + secondary + audioWave;
+                
+                if (x === 0) {
+                    this.ctx.moveTo(x, y);
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+            
+            const hue = (wave * 45 + this.time * 25) % 360;
+            const gradient = this.ctx.createLinearGradient(0, yBase - amplitude, 0, yBase + amplitude);
+            gradient.addColorStop(0, `hsla(${hue}, 100%, 70%, 0.8)`);
+            gradient.addColorStop(0.5, `hsla(${(hue + 30) % 360}, 100%, 60%, 0.9)`);
+            gradient.addColorStop(1, `hsla(${(hue + 60) % 360}, 100%, 50%, 0.7)`);
+            
+            this.ctx.strokeStyle = gradient;
+            this.ctx.lineWidth = 2 + energy * 4;
+            this.ctx.stroke();
+        }
+    }
+
+    /**
+     * Crossing Planes - Intersecting grid lines that warp
+     */
+    renderCrossingPlanes(audioData, metadata) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        const gridLines = 15;
+        const amplitude = 50 + metadata.amplitude * 100;
+        
+        for (let i = 0; i < gridLines; i++) {
+            const t = (i + 1) / (gridLines + 1);
+            const freqIndex = Math.floor(t * bufferLength);
+            const energy = frequencyData[freqIndex] / 255;
+            
+            this.ctx.beginPath();
+            for (let x = 0; x <= this.width; x += 5) {
+                const xt = x / this.width;
+                const dataIndex = Math.floor(xt * bufferLength);
+                const wave = (timeData[dataIndex] / 128.0 - 1) * amplitude;
+                
+                const warp = Math.sin(xt * Math.PI * 4 + this.time * 2 + i) * amplitude * energy;
+                const y = t * this.height + wave + warp;
+                
+                if (x === 0) {
+                    this.ctx.moveTo(x, y);
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+            
+            const hue = (i * 24 + this.time * 20) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.7)`;
+            this.ctx.lineWidth = 2 + energy * 3;
+            this.ctx.stroke();
+        }
+        
+        for (let i = 0; i < gridLines; i++) {
+            const t = (i + 1) / (gridLines + 1);
+            const freqIndex = Math.floor(t * bufferLength);
+            const energy = frequencyData[freqIndex] / 255;
+            
+            this.ctx.beginPath();
+            for (let y = 0; y <= this.height; y += 5) {
+                const yt = y / this.height;
+                const dataIndex = Math.floor(yt * bufferLength);
+                const wave = (timeData[dataIndex] / 128.0 - 1) * amplitude;
+                
+                const warp = Math.cos(yt * Math.PI * 4 + this.time * 2.5 + i) * amplitude * energy;
+                const x = t * this.width + wave + warp;
+                
+                if (y === 0) {
+                    this.ctx.moveTo(x, y);
+                } else {
+                    this.ctx.lineTo(x, y);
+                }
+            }
+            
+            const hue = (i * 24 + 180 + this.time * 20) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.7)`;
+            this.ctx.lineWidth = 2 + energy * 3;
+            this.ctx.stroke();
+        }
+        
+        for (let i = 0; i < gridLines; i++) {
+            for (let j = 0; j < gridLines; j++) {
+                const ti = (i + 1) / (gridLines + 1);
+                const tj = (j + 1) / (gridLines + 1);
+                
+                const freqIndex = Math.floor(((ti + tj) / 2) * bufferLength);
+                const energy = frequencyData[freqIndex] / 255;
+                
+                if (energy > 0.4) {
+                    const x = ti * this.width + Math.sin(this.time * 2 + i + j) * amplitude * energy;
+                    const y = tj * this.height + Math.cos(this.time * 2.5 + i - j) * amplitude * energy;
+                    
+                    const hue = ((i + j) * 20 + this.time * 30) % 360;
+                    this.ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${energy})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 3 + energy * 8, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+        }
+    }
+
+    /**
+     * Combined Effects - Mix of spirals, waves, and particles
+     */
+    renderCombinedEffects(audioData, metadata) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const maxRadius = Math.min(this.width, this.height) * 0.4;
+        
+        const rings = 5;
+        for (let ring = 0; ring < rings; ring++) {
+            const ringRadius = (ring + 1) / rings * maxRadius * 0.6;
+            const segments = 40;
+            
+            this.ctx.beginPath();
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const freqIndex = Math.floor(t * bufferLength);
+                const energy = frequencyData[freqIndex] / 255;
+                
+                const angle = t * Math.PI * 2 + this.time * (1 + ring * 0.2) * (ring % 2 === 0 ? 1 : -1);
+                const radius = ringRadius + Math.sin(t * Math.PI * 6 + this.time * 3) * 20 * energy;
+                
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                if (i === 0) this.ctx.moveTo(x, y);
+                else this.ctx.lineTo(x, y);
+            }
+            this.ctx.closePath();
+            
+            const hue = (ring * 72 + this.time * 20) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 100%, 60%, 0.6)`;
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+        }
+        
+        const numWaves = 4;
+        for (let wave = 0; wave < numWaves; wave++) {
+            const yBase = this.height * (0.2 + wave * 0.2);
+            
+            this.ctx.beginPath();
+            for (let x = 0; x <= this.width; x += 4) {
+                const t = x / this.width;
+                const dataIndex = Math.floor(t * bufferLength);
+                const energy = frequencyData[dataIndex] / 255;
+                const waveData = (timeData[dataIndex] / 128.0 - 1);
+                
+                const y = yBase + Math.sin(t * Math.PI * 6 + this.time * 2 + wave) * 30 * energy + waveData * 40;
+                
+                if (x === 0) this.ctx.moveTo(x, y);
+                else this.ctx.lineTo(x, y);
+            }
+            
+            const hue = (wave * 90 + 45 + this.time * 25) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 80%, 55%, 0.5)`;
+            this.ctx.lineWidth = 2;
+            this.ctx.stroke();
+        }
+        
+        const particleCount = 50;
+        for (let i = 0; i < particleCount; i++) {
+            const freqIndex = Math.floor((i / particleCount) * bufferLength);
+            const energy = frequencyData[freqIndex] / 255;
+            
+            if (energy > 0.3) {
+                const angle = (i / particleCount) * Math.PI * 2 + this.time * 1.5;
+                const radius = maxRadius * (0.7 + energy * 0.5);
+                
+                const x = centerX + Math.cos(angle) * radius;
+                const y = centerY + Math.sin(angle) * radius;
+                
+                const hue = (i * 7 + this.time * 50) % 360;
+                this.ctx.fillStyle = `hsla(${hue}, 100%, 70%, ${energy})`;
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, 3 + energy * 10, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+        }
     }
 }

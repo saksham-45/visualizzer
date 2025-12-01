@@ -274,27 +274,21 @@ body.hide-ui {
     cursor: none;
 }
 
-body.hide-ui .ui-overlay,
-body.hide-ui .container,
+.container,
+.header,
+.info-panel,
+.controls {
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+body.hide-ui .container {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-20px);
+}
+
 body.hide-ui .info-panel {
     opacity: 0;
     pointer-events: none;
-}
-
-/* Keep the start button visible even when UI auto-hides */
-#startBtn, .start-btn, .btn-primary.start {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10001;
-    opacity: 1;
-    pointer-events: auto;
-}
-
-body.hide-ui #startBtn,
-body.hide-ui .start-btn,
-body.hide-ui .btn-primary.start {
-    opacity: 1 !important;
-    pointer-events: auto !important;
+    transform: translateX(20px);
 }
