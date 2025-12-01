@@ -274,14 +274,12 @@ body.hide-ui {
     cursor: none;
 }
 
-.container,
 .header,
-.info-panel,
-.controls {
+.info-panel {
     transition: opacity 0.5s ease, transform 0.5s ease;
 }
 
-body.hide-ui .container {
+body.hide-ui .header {
     opacity: 0;
     pointer-events: none;
     transform: translateY(-20px);
