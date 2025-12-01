@@ -82,36 +82,78 @@ export class MeshVisualizers {
         animateTransition();
     }
     
+    selectVisualizerByFrequency(metadata) {
+        // Smart visualizer selection based on frequency characteristics
+        const energyBands = metadata.energyBands || {};
+        const bass = energyBands.bass || 0;
+        const mid = energyBands.mid || 0;
+        const treble = energyBands.treble || 0;
+        
+        // Normalize energy
+        const total = bass + mid + treble + 0.001;
+        const bassRatio = bass / total;
+        const midRatio = mid / total;
+        const trebleRatio = treble / total;
+        
+        // Analyze dominant frequency range
+        let selectedViz = 'wave';
+        
+        // Bass-heavy: spirals and vortex effects (low frequency responsiveness)
+        if (bassRatio > 0.5) {
+            const options = ['spiral1', 'tornado', 'cyclone'];
+            selectedViz = options[Math.floor(Math.random() * options.length)];
+        }
+        // Treble-heavy: fractals and kaleidoscope (high frequency responsiveness)
+        else if (trebleRatio > 0.4) {
+            const options = ['kaleidoscope', 'fractal', 'mandala'];
+            selectedViz = options[Math.floor(Math.random() * options.length)];
+        }
+        // Balanced: waves and complex patterns
+        else if (midRatio > 0.45) {
+            const options = ['wave', 'flowing', 'ripple'];
+            selectedViz = options[Math.floor(Math.random() * options.length)];
+        }
+        // Complex mix: combined effects
+        else {
+            const options = ['combined', 'tracing', 'crossing'];
+            selectedViz = options[Math.floor(Math.random() * options.length)];
+        }
+        
+        // Occasional random pick for variety
+        if (Math.random() < 0.15) {
+            const allVizs = ['spiral1', 'spiral2', 'spiral3', 'spiral4', 'kaleidoscope', 'mandala', 'fractal', 'tunnel', 'wave', 'flowing', 'cyclone', 'tornado', 'mandala', 'combined'];
+            selectedViz = allVizs[Math.floor(Math.random() * allVizs.length)];
+        }
+        
+        return selectedViz;
+    }
+    
     isSignificantAudioChange(metadata) {
         if (!this.lastAudioCharacteristics) {
             this.lastAudioCharacteristics = {
-                amplitude: metadata.amplitude,
-                spectralCentroid: metadata.spectralCentroid,
-                complexityIndex: this.calculateComplexity(metadata)
+                bassEnergy: metadata.energyBands?.bass || 0,
+                trebleEnergy: metadata.energyBands?.treble || 0,
+                amplitude: metadata.amplitude
             };
             return false;
         }
         
-        const amplitudeDelta = Math.abs(metadata.amplitude - this.lastAudioCharacteristics.amplitude);
-        const centroidDelta = Math.abs(metadata.spectralCentroid - this.lastAudioCharacteristics.spectralCentroid) / 5000;
-        const complexity = this.calculateComplexity(metadata);
-        const complexityDelta = Math.abs(complexity - this.lastAudioCharacteristics.complexityIndex);
+        const bassDelta = Math.abs((metadata.energyBands?.bass || 0) - this.lastAudioCharacteristics.bassEnergy);
+        const trebleDelta = Math.abs((metadata.energyBands?.treble || 0) - this.lastAudioCharacteristics.trebleEnergy);
+        const ampDelta = Math.abs(metadata.amplitude - this.lastAudioCharacteristics.amplitude);
         
-        const significantChange = amplitudeDelta > 0.3 || centroidDelta > 0.4 || complexityDelta > 0.35;
+        // Significant change if any band shifts substantially
+        const significantChange = bassDelta > 1500 || trebleDelta > 1500 || ampDelta > 0.35;
         
         if (significantChange) {
             this.lastAudioCharacteristics = {
-                amplitude: metadata.amplitude,
-                spectralCentroid: metadata.spectralCentroid,
-                complexityIndex: complexity
+                bassEnergy: metadata.energyBands?.bass || 0,
+                trebleEnergy: metadata.energyBands?.treble || 0,
+                amplitude: metadata.amplitude
             };
         }
         
         return significantChange;
-    }
-    
-    calculateComplexity(metadata) {
-        return (metadata.amplitude * 0.3) + (metadata.rhythmEnergy * 0.4) + ((metadata.spectralCentroid / 20000) * 0.3);
     }
 
     easeInOutCubic(t) {
@@ -933,20 +975,19 @@ export class MeshVisualizers {
     
     generateTransitionParticles(fromType, toType, audioData, metadata) {
         this.transitionParticles = [];
-        const particleCount = 750; // Massive increase for denser effect
+        const particleCount = 500; // Optimized density for smooth performance
         
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         
+        // Pre-generate particle pool
         for (let i = 0; i < particleCount; i++) {
             const angle = (i / particleCount) * Math.PI * 2;
             const radius = Math.min(this.width, this.height) * (0.15 + Math.random() * 0.4);
             
-            // Start position (scattered around center)
             const startX = centerX + Math.cos(angle) * radius * (0.3 + Math.random() * 0.7);
             const startY = centerY + Math.sin(angle) * radius * (0.3 + Math.random() * 0.7);
             
-            // Target position (will be various based on target viz)
             const targetRadius = Math.min(this.width, this.height) * (0.05 + Math.random() * 0.35);
             const targetAngle = angle + (Math.random() - 0.5) * Math.PI * 1.5;
             const targetX = centerX + Math.cos(targetAngle) * targetRadius;
@@ -957,10 +998,7 @@ export class MeshVisualizers {
                 y: startY,
                 targetX: targetX,
                 targetY: targetY,
-                vx: 0,
-                vy: 0,
-                size: 1.5 + Math.random() * 3,
-                life: Math.random() * 0.5,
+                size: 1.5 + Math.random() * 2.5,
                 hue: Math.random() * 360,
                 wave: Math.random() * Math.PI * 2
             });
@@ -972,83 +1010,62 @@ export class MeshVisualizers {
         const energy = (frequencyData[50] + frequencyData[100] + frequencyData[200] + frequencyData[500]) / 1020;
         const rhythmEnergy = metadata.rhythmEnergy || energy;
         
-        this.transitionParticles.forEach((p, i) => {
-            // Aggressive easing - particles move fast early on
-            const ease = t < 0.4 ? Math.pow(t / 0.4, 1.2) : 1 - Math.pow(1 - t, 2.5);
+        // Super fast quadratic easing - particles zoom to target
+        const easeT = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const audioBoost = 1 + energy * 6 + rhythmEnergy * 4;
+        const baseSpeed = 0.12 + easeT * 0.35; // Even faster base movement
+        
+        for (let i = 0; i < this.transitionParticles.length; i++) {
+            const p = this.transitionParticles[i];
             
-            // Target position with audio influence
             const dx = p.targetX - p.x;
             const dy = p.targetY - p.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            const distSq = dx * dx + dy * dy;
             
-            // Move particles toward target with MUCH higher speed
-            const audioBoost = 1 + energy * 5 + rhythmEnergy * 3;
-            const speed = (0.08 + ease * 0.25) * audioBoost; // 3-4x faster
-            
-            if (dist > 1) {
-                p.x += (dx / dist) * speed * this.width;
-                p.y += (dy / dist) * speed * this.height;
-            } else if (dist > 0) {
-                p.x = p.targetX;
-                p.y = p.targetY;
+            // Direct movement without sqrt for speed
+            if (distSq > 1) {
+                const dist = Math.sqrt(distSq);
+                const speed = (baseSpeed * audioBoost) / dist;
+                p.x += dx * speed;
+                p.y += dy * speed;
             }
             
-            // More aggressive wave motion matching tempo
-            p.wave += 0.15 + energy * 0.3 + rhythmEnergy * 0.2;
-            const waveX = Math.sin(p.wave) * 8 * energy;
-            const waveY = Math.cos(p.wave) * 8 * energy;
+            // Wave motion simplified
+            p.wave += 0.12 + energy * 0.25;
+            const waveInfluence = Math.sin(p.wave) * 3 * energy;
+            p.x += waveInfluence;
+            p.y += Math.cos(p.wave) * 3 * energy;
             
-            p.x += waveX;
-            p.y += waveY;
-            
-            // Update life and hue with faster color shift
-            p.life = t;
-            p.hue = (p.hue + energy * 15 + rhythmEnergy * 10) % 360;
-        });
+            // Hue shift
+            p.hue = (p.hue + energy * 12) % 360;
+        }
     }
     
     renderTransitionParticles(t, audioData, metadata) {
         const { frequencyData } = audioData;
+        const baseAlpha = 0.5 + t * 0.5;
         
-        this.transitionParticles.forEach((p, i) => {
-            // Only render if within bounds
-            if (p.x < -50 || p.x > this.width + 50 || p.y < -50 || p.y > this.height + 50) {
-                return;
+        // Batch render particles - no per-particle shadow overhead
+        this.ctx.shadowBlur = 0;
+        
+        for (let i = 0; i < this.transitionParticles.length; i++) {
+            const p = this.transitionParticles[i];
+            
+            // Quick bounds check
+            if (p.x < -30 || p.x > this.width + 30 || p.y < -30 || p.y > this.height + 30) {
+                continue;
             }
             
-            // Size pulses with audio
             const energy = frequencyData[Math.floor((i / this.transitionParticles.length) * 255)] / 255;
-            const size = Math.abs(p.size * (1 + energy * 0.5));
+            const size = p.size * (1 + energy * 0.4);
+            const alpha = (baseAlpha + energy * 0.2) * 0.85;
             
-            // Opacity increases during transition
-            const alpha = 0.4 + t * 0.6 + energy * 0.3;
-            
-            // Draw particle with glow
-            this.ctx.fillStyle = `hsla(${p.hue}, 100%, ${60 + energy * 20}%, ${alpha})`;
-            this.ctx.shadowColor = `hsla(${p.hue}, 100%, 70%, ${alpha * 0.7})`;
-            this.ctx.shadowBlur = 10 + energy * 15;
-            
+            // Simple, fast rendering - no glow overhead
+            this.ctx.fillStyle = `hsla(${p.hue}, 85%, ${55 + energy * 25}%, ${alpha})`;
             this.ctx.beginPath();
             this.ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
             this.ctx.fill();
-            
-            // Draw trails
-            if (t > 0.2) {
-                const trailAlpha = (t - 0.2) * alpha * 0.3;
-                this.ctx.strokeStyle = `hsla(${p.hue}, 100%, 70%, ${trailAlpha})`;
-                this.ctx.lineWidth = 1;
-                this.ctx.beginPath();
-                
-                const prevX = p.x - (p.targetX - p.x) * 0.05;
-                const prevY = p.y - (p.targetY - p.y) * 0.05;
-                
-                this.ctx.moveTo(prevX, prevY);
-                this.ctx.lineTo(p.x, p.y);
-                this.ctx.stroke();
-            }
-        });
-        
-        this.ctx.shadowBlur = 0;
+        }
     }
 
     getDeformedMesh(type, mesh, audioData, metadata) {
