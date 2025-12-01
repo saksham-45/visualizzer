@@ -22,6 +22,11 @@ export class MeshVisualizers {
         this.maxParticles = 30;
         this.meltingDisturbances = new Map(); // Store melting effects on mesh points
         
+        // Transition tracking
+        this.lastAudioCharacteristics = null;
+        this.lastTransitionTime = 0;
+        this.minTransitionInterval = 8000; // Minimum 8 seconds between transitions
+        
         // Resize canvas
         this.resize();
         window.addEventListener('resize', () => this.resize());
@@ -36,8 +41,13 @@ export class MeshVisualizers {
         this.height = rect.height;
     }
 
-    setVisualizer(type) {
+    setVisualizer(type, forceTransition = false) {
         if (this.currentVisualizer === type) return;
+        
+        const now = Date.now();
+        if (!forceTransition && now - this.lastTransitionTime < this.minTransitionInterval) {
+            return; // Prevent frequent transitions
+        }
         
         // Clear particles when switching away from bars
         if (this.currentVisualizer === 'bars' && type !== 'bars') {
@@ -48,8 +58,10 @@ export class MeshVisualizers {
         this.previousVisualizer = this.currentVisualizer;
         this.targetVisualizer = type;
         this.transitionProgress = 0;
+        this.lastTransitionTime = now;
+        this.transitionParticles = []; // Clear old particles
         
-        const transitionDuration = 3000; // Longer for organic transitions
+        const transitionDuration = 2500; // Faster assembly, but viz stays longer before next transition
         const startTime = Date.now();
         
         const animateTransition = () => {
@@ -63,10 +75,43 @@ export class MeshVisualizers {
                 this.currentVisualizer = type;
                 this.targetVisualizer = null;
                 this.previousVisualizer = null;
+                this.transitionParticles = [];
             }
         };
         
         animateTransition();
+    }
+    
+    isSignificantAudioChange(metadata) {
+        if (!this.lastAudioCharacteristics) {
+            this.lastAudioCharacteristics = {
+                amplitude: metadata.amplitude,
+                spectralCentroid: metadata.spectralCentroid,
+                complexityIndex: this.calculateComplexity(metadata)
+            };
+            return false;
+        }
+        
+        const amplitudeDelta = Math.abs(metadata.amplitude - this.lastAudioCharacteristics.amplitude);
+        const centroidDelta = Math.abs(metadata.spectralCentroid - this.lastAudioCharacteristics.spectralCentroid) / 5000;
+        const complexity = this.calculateComplexity(metadata);
+        const complexityDelta = Math.abs(complexity - this.lastAudioCharacteristics.complexityIndex);
+        
+        const significantChange = amplitudeDelta > 0.3 || centroidDelta > 0.4 || complexityDelta > 0.35;
+        
+        if (significantChange) {
+            this.lastAudioCharacteristics = {
+                amplitude: metadata.amplitude,
+                spectralCentroid: metadata.spectralCentroid,
+                complexityIndex: complexity
+            };
+        }
+        
+        return significantChange;
+    }
+    
+    calculateComplexity(metadata) {
+        return (metadata.amplitude * 0.3) + (metadata.rhythmEnergy * 0.4) + ((metadata.spectralCentroid / 20000) * 0.3);
     }
 
     easeInOutCubic(t) {
@@ -888,22 +933,22 @@ export class MeshVisualizers {
     
     generateTransitionParticles(fromType, toType, audioData, metadata) {
         this.transitionParticles = [];
-        const particleCount = 150;
+        const particleCount = 750; // Massive increase for denser effect
         
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         
         for (let i = 0; i < particleCount; i++) {
             const angle = (i / particleCount) * Math.PI * 2;
-            const radius = Math.min(this.width, this.height) * (0.2 + Math.random() * 0.3);
+            const radius = Math.min(this.width, this.height) * (0.15 + Math.random() * 0.4);
             
             // Start position (scattered around center)
-            const startX = centerX + Math.cos(angle) * radius * (0.5 + Math.random() * 0.5);
-            const startY = centerY + Math.sin(angle) * radius * (0.5 + Math.random() * 0.5);
+            const startX = centerX + Math.cos(angle) * radius * (0.3 + Math.random() * 0.7);
+            const startY = centerY + Math.sin(angle) * radius * (0.3 + Math.random() * 0.7);
             
             // Target position (will be various based on target viz)
-            const targetRadius = Math.min(this.width, this.height) * (0.1 + Math.random() * 0.4);
-            const targetAngle = angle + (Math.random() - 0.5) * Math.PI;
+            const targetRadius = Math.min(this.width, this.height) * (0.05 + Math.random() * 0.35);
+            const targetAngle = angle + (Math.random() - 0.5) * Math.PI * 1.5;
             const targetX = centerX + Math.cos(targetAngle) * targetRadius;
             const targetY = centerY + Math.sin(targetAngle) * targetRadius;
             
@@ -914,7 +959,7 @@ export class MeshVisualizers {
                 targetY: targetY,
                 vx: 0,
                 vy: 0,
-                size: 2 + Math.random() * 4,
+                size: 1.5 + Math.random() * 3,
                 life: Math.random() * 0.5,
                 hue: Math.random() * 360,
                 wave: Math.random() * Math.PI * 2
@@ -924,37 +969,41 @@ export class MeshVisualizers {
     
     updateTransitionParticles(t, audioData, metadata) {
         const { frequencyData } = audioData;
-        const energy = (frequencyData[100] + frequencyData[500]) / 510;
+        const energy = (frequencyData[50] + frequencyData[100] + frequencyData[200] + frequencyData[500]) / 1020;
+        const rhythmEnergy = metadata.rhythmEnergy || energy;
         
         this.transitionParticles.forEach((p, i) => {
-            // Easing function for smooth motion
-            const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            // Aggressive easing - particles move fast early on
+            const ease = t < 0.4 ? Math.pow(t / 0.4, 1.2) : 1 - Math.pow(1 - t, 2.5);
             
             // Target position with audio influence
             const dx = p.targetX - p.x;
             const dy = p.targetY - p.y;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
-            // Move particles toward target with audio-driven acceleration
-            const audioBoost = 1 + energy * 3;
-            const speed = (0.02 + ease * 0.08) * audioBoost;
+            // Move particles toward target with MUCH higher speed
+            const audioBoost = 1 + energy * 5 + rhythmEnergy * 3;
+            const speed = (0.08 + ease * 0.25) * audioBoost; // 3-4x faster
             
-            if (dist > 0.5) {
+            if (dist > 1) {
                 p.x += (dx / dist) * speed * this.width;
                 p.y += (dy / dist) * speed * this.height;
+            } else if (dist > 0) {
+                p.x = p.targetX;
+                p.y = p.targetY;
             }
             
-            // Wave motion
-            p.wave += 0.05 + energy * 0.1;
-            const waveX = Math.sin(p.wave) * 5 * energy;
-            const waveY = Math.cos(p.wave) * 5 * energy;
+            // More aggressive wave motion matching tempo
+            p.wave += 0.15 + energy * 0.3 + rhythmEnergy * 0.2;
+            const waveX = Math.sin(p.wave) * 8 * energy;
+            const waveY = Math.cos(p.wave) * 8 * energy;
             
             p.x += waveX;
             p.y += waveY;
             
-            // Update life and hue
+            // Update life and hue with faster color shift
             p.life = t;
-            p.hue = (p.hue + energy * 5) % 360;
+            p.hue = (p.hue + energy * 15 + rhythmEnergy * 10) % 360;
         });
     }
     
