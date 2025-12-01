@@ -61,7 +61,7 @@ export class MeshVisualizers {
         this.lastTransitionTime = now;
         this.transitionParticles = []; // Clear old particles
         
-        const transitionDuration = 2500; // Faster assembly, but viz stays longer before next transition
+        const transitionDuration = 1200; // Ultra-fast smooth blend
         const startTime = Date.now();
         
         const animateTransition = () => {
@@ -960,17 +960,19 @@ export class MeshVisualizers {
             this.generateTransitionParticles(fromType, toType, audioData, metadata);
         }
         
-        // Update and render transition particles
+        // Render old visualizer fading out
+        this.ctx.globalAlpha = 1 - t;
+        this.renderMeshVisualizer(fromType, audioData, metadata);
+        this.ctx.globalAlpha = 1;
+        
+        // Render new visualizer fading in
+        this.ctx.globalAlpha = t;
+        this.renderMeshVisualizer(toType, audioData, metadata);
+        this.ctx.globalAlpha = 1;
+        
+        // Update and render transition particles as a smooth bridge
         this.updateTransitionParticles(t, audioData, metadata);
         this.renderTransitionParticles(t, audioData, metadata);
-        
-        // Blend toward target visualizer at the end
-        if (t > 0.7) {
-            const blendAlpha = (t - 0.7) / 0.3; // 0 to 1 over final 30%
-            this.ctx.globalAlpha = blendAlpha * 0.6;
-            this.renderMeshVisualizer(toType, audioData, metadata);
-            this.ctx.globalAlpha = 1;
-        }
     }
     
     generateTransitionParticles(fromType, toType, audioData, metadata) {
