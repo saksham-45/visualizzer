@@ -17,10 +17,7 @@ export class Visualizers {
 
         // Initialize MeshVisualizers
         this.meshVisualizer = new MeshVisualizers(canvas, audioCapture, audioAnalyzer);
-        this.meshTypes = [
-            'wave', 'bars', 'flowing', 'spiral', 'tornado', 'cyclone', 'ripple', 'morphing', 'trippy',
-            'depthlines', 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid'
-        ];
+        this.meshTypes = ['wave', 'bars', 'flowing', 'spiral', 'tornado', 'cyclone', 'ripple', 'morphing', 'trippy'];
 
         // Resize canvas
         this.resize();

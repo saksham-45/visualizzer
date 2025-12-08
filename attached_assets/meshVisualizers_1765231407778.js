@@ -201,7 +201,7 @@ export class MeshVisualizers {
         this.time += deltaTime;
         
         const metadata = this.audioAnalyzer.analyze();
-        const visualizerType = this.targetVisualizer || this.currentVisualizer || 'wave';
+        const visualizerType = this.targetVisualizer || this.currentVisualizer;
 
         this.camera.update(metadata, deltaTime);
 
@@ -215,7 +215,7 @@ export class MeshVisualizers {
             this.renderMeshVisualizer(visualizerType, audioData, metadata);
         }
     }
-    
+
     /**
      * Create or retrieve cached mesh grid for cloth-like rendering
      * OPTIMIZED: Reuses mesh between frames, only recreates on resize
@@ -1859,56 +1859,74 @@ export class MeshVisualizers {
     }
 
     /**
-     * Apple Music Style: Depth Lines - Lines coming in/out of screen with 3D perspective
-     * Uses camera for beat-reactive movement
+     * Apple Music Style: Depth Lines - Lines radiating with 3D perspective
+     * ENHANCED: Uses camera for dynamic perspective, more intense and screen-filling
      */
     renderDepthLines(audioData, metadata) {
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         const lineCount = 80;
+        const pointsPerLine = 35;
         
         const intensity = this.camera.getIntensityMultiplier();
-        const speed = this.time * 3 + this.camera.z * 0.02;
+        const speed = this.time * 3;
+        const maxExtent = Math.max(this.width, this.height) * 0.9;
+        
+        this.ctx.shadowBlur = 0;
         
         for (let i = 0; i < lineCount; i++) {
-            const angle = (i / lineCount) * Math.PI * 2;
+            const baseAngle = (i / lineCount) * Math.PI * 2;
             const freqIndex = Math.floor((i / lineCount) * bufferLength);
             const energy = frequencyData[freqIndex] / 255;
-            const wave = (timeData[freqIndex] / 128.0 - 1) * 30;
+            const wave = (timeData[freqIndex] / 128.0 - 1);
             
-            const lineSegments = 20;
-            for (let j = 0; j < lineSegments; j++) {
-                const t = (j / lineSegments + (speed * 0.08) % 1);
-                const z3d = (1 - t) * 600 - 200;
+            let prevPoint = null;
+            
+            for (let p = 0; p < pointsPerLine; p++) {
+                const progress = p / pointsPerLine;
                 
-                const baseRadius = 30 + t * Math.min(this.width, this.height) * 0.6;
-                const wobble = this.fastSin(angle * 4 + t * 8 + this.time * 6) * 35 * energy * intensity;
-                const radius = baseRadius + wobble + wave * energy;
+                const zBase = ((progress + speed * 0.4) % 1);
+                const z3d = (1 - zBase) * 600 - 200;
                 
-                const x3d = this.fastCos(angle) * radius;
-                const y3d = this.fastSin(angle) * radius;
+                const baseRadius = 20 + zBase * maxExtent * (0.8 + energy * 0.4);
+                const waveOffset = this.fastSin(baseAngle * 5 + this.time * 4 + p * 0.4) * 60 * energy * intensity;
+                const radius = baseRadius + waveOffset + wave * 80 * energy;
+                
+                const x3d = this.fastCos(baseAngle + this.time * 0.5) * radius;
+                const y3d = this.fastSin(baseAngle + this.time * 0.5) * radius;
                 
                 const projected = this.camera.project(x3d, y3d, z3d, centerX, centerY);
                 if (!projected) continue;
                 
-                const hue = (i * 4.5 + t * 60 + this.time * 70) % 360;
-                const brightness = 50 + energy * 40;
-                const size = Math.max(2, (4 + energy * 15) * projected.scale * intensity);
-                const alpha = Math.min(1, (0.3 + energy * 0.6 + t * 0.3) * projected.scale);
+                const size = Math.max(2, (3 + energy * 10) * projected.scale * intensity);
+                const hue = (i * 4.5 + p * 6 + this.time * 70) % 360;
+                const brightness = 50 + projected.scale * 25 + energy * 25;
+                const alpha = Math.min(1, (0.4 + projected.scale * 0.4 + energy * 0.3) * intensity);
                 
                 this.ctx.fillStyle = `hsla(${hue}, 100%, ${brightness}%, ${alpha})`;
                 this.ctx.beginPath();
                 this.ctx.arc(projected.x, projected.y, size, 0, Math.PI * 2);
                 this.ctx.fill();
+                
+                if (prevPoint) {
+                    this.ctx.strokeStyle = `hsla(${hue}, 100%, 65%, ${alpha * 0.7})`;
+                    this.ctx.lineWidth = Math.max(1, 2.5 * projected.scale * (0.6 + energy * 0.6));
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(prevPoint.x, prevPoint.y);
+                    this.ctx.lineTo(projected.x, projected.y);
+                    this.ctx.stroke();
+                }
+                
+                prevPoint = projected;
             }
         }
         
         const coreEnergy = metadata.amplitude * intensity;
         const coreSize = 30 + coreEnergy * 80;
         const coreGradient = this.ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreSize);
-        coreGradient.addColorStop(0, `hsla(${(this.time * 90) % 360}, 100%, 95%, 1)`);
-        coreGradient.addColorStop(0.4, `hsla(${(this.time * 90 + 40) % 360}, 100%, 70%, 0.6)`);
+        coreGradient.addColorStop(0, `hsla(${(this.time * 100) % 360}, 100%, 95%, 0.95)`);
+        coreGradient.addColorStop(0.4, `hsla(${(this.time * 100 + 40) % 360}, 100%, 70%, 0.5)`);
         coreGradient.addColorStop(1, 'transparent');
         this.ctx.fillStyle = coreGradient;
         this.ctx.beginPath();
@@ -1917,17 +1935,18 @@ export class MeshVisualizers {
     }
 
     /**
-     * Apple Music Style: Warp Tunnel - 3D tunnel rushing towards viewer
+     * Apple Music Style: Warp Tunnel - 3D tunnel rushing toward viewer
+     * ENHANCED: Uses camera for dynamic perspective, screen-filling warp effect
      */
     renderWarpTunnel(audioData, metadata) {
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const rings = 25;
-        const segments = 36;
+        const rings = 45;
+        const segments = 48;
         
         const intensity = this.camera.getIntensityMultiplier();
-        const speed = this.time * 3.5 + this.camera.z * 0.02;
+        const speed = this.time * 3.5;
         const maxRadius = Math.max(this.width, this.height) * 0.7;
         
         for (let ring = 0; ring < rings; ring++) {
@@ -1973,6 +1992,25 @@ export class MeshVisualizers {
                 this.ctx.lineWidth = Math.max(1.5, (2 + energy * 4) * avgScale);
                 this.ctx.stroke();
                 
+                if (ring % 3 === 0) {
+                    for (let i = 0; i < points.length; i += 4) {
+                        const p = points[i];
+                        const innerRadius = 0.2;
+                        const ix3d = this.fastCos(p.angle) * baseRadius * innerRadius;
+                        const iy3d = this.fastSin(p.angle) * baseRadius * innerRadius;
+                        const innerProj = this.camera.project(ix3d, iy3d, z3d + 50, centerX, centerY);
+                        
+                        if (innerProj) {
+                            this.ctx.strokeStyle = `hsla(${hue}, 90%, 60%, ${alpha * 0.5})`;
+                            this.ctx.lineWidth = 1.5 + energy * 2;
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(p.x, p.y);
+                            this.ctx.lineTo(innerProj.x, innerProj.y);
+                            this.ctx.stroke();
+                        }
+                    }
+                }
+                
                 if (zProgress > 0.6 && energy > 0.2) {
                     for (let i = 0; i < points.length; i += 3) {
                         const p = points[i];
@@ -2001,6 +2039,7 @@ export class MeshVisualizers {
 
     /**
      * Apple Music Style: 3D Spectrum Bars - Frequency bars with 3D perspective
+     * ENHANCED: Uses camera for dynamic movement, taller and more impactful bars
      */
     render3DSpectrumBars(audioData, metadata) {
         const { frequencyData, timeData, bufferLength } = audioData;
@@ -2011,6 +2050,7 @@ export class MeshVisualizers {
         
         const intensity = this.camera.getIntensityMultiplier();
         const cameraOffset = this.camera.x * 0.3;
+        const cameraTilt = this.camera.rotationY * 0.5;
         
         for (let row = rows - 1; row >= 0; row--) {
             const z3d = row * 120 - 200;
@@ -2059,6 +2099,7 @@ export class MeshVisualizers {
                 this.ctx.fill();
                 
                 if (energy > 0.5) {
+                    const glowSize = energy * 15 * projected.scale;
                     this.ctx.fillStyle = `hsla(${hue}, 100%, 85%, ${(energy - 0.5) * 0.9})`;
                     this.ctx.fillRect(x - 2, y - 3, barWidth + 4, Math.min(barHeight * 0.1, 15));
                 }
@@ -2068,6 +2109,7 @@ export class MeshVisualizers {
 
     /**
      * Apple Music Style: Orbit Lines - 3D orbiting line trails
+     * ENHANCED: Uses camera for dynamic 3D movement, larger orbits
      */
     renderOrbitLines(audioData, metadata) {
         const { frequencyData, timeData, bufferLength } = audioData;
@@ -2152,6 +2194,7 @@ export class MeshVisualizers {
 
     /**
      * Apple Music Style: Starburst - Lines exploding outward with 3D depth
+     * ENHANCED: Uses camera for dynamic perspective, screen-filling explosion
      */
     renderStarburst(audioData, metadata) {
         const { frequencyData, timeData, bufferLength } = audioData;
@@ -2237,6 +2280,7 @@ export class MeshVisualizers {
         const cameraOffset = this.camera.x * 0.5;
         const speed = this.time * 2.5 + this.camera.z * 0.01;
         
+        // Draw horizontal grid lines with camera depth
         for (let i = 0; i < gridLines; i++) {
             const baseZ = ((i / gridLines) * 1000 + (speed * 60) % 1000) % 1000;
             const z3d = baseZ - 200;
@@ -2280,6 +2324,7 @@ export class MeshVisualizers {
         
         this.ctx.shadowBlur = 0;
         
+        // Draw vertical lines with camera perspective
         for (let i = 0; i < verticalLines; i++) {
             const xProgress = (i / (verticalLines - 1)) - 0.5;
             const x1 = centerX + xProgress * this.width * 2.5 + cameraOffset;
@@ -2304,6 +2349,7 @@ export class MeshVisualizers {
             this.ctx.stroke();
         }
         
+        // Sun/orb at horizon with camera shake
         const sunX = centerX + this.camera.shakeX * 0.5 + cameraOffset * 0.3;
         const sunY = horizonY + this.camera.shakeY * 0.3;
         const sunSize = (80 + metadata.amplitude * 120 + this.fastSin(this.time * 3) * 25) * intensity;
@@ -2319,6 +2365,7 @@ export class MeshVisualizers {
         this.ctx.arc(sunX, sunY, sunSize, 0, Math.PI * 2);
         this.ctx.fill();
         
+        // Outer glow ring
         const glowSize = sunSize * 1.5 + metadata.amplitude * 50;
         const glowGradient = this.ctx.createRadialGradient(sunX, sunY, sunSize * 0.8, sunX, sunY, glowSize);
         glowGradient.addColorStop(0, `hsla(${(this.time * 35 + 60) % 360}, 100%, 60%, 0.3)`);

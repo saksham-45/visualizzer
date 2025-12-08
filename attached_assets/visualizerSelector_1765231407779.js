@@ -14,12 +14,12 @@ export class VisualizerSelector {
         this.targetTimePerVisualizer = 6500; // 6.5 seconds per visualizer
         this.switchCount = 0;
         
-        // All available visualizers (classic + new 3D visualizers with camera effects)
+        // All available visualizers in order
         this.allVisualizers = [
+            'depthlines', 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
             'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
             'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala',
-            'fractal', 'tunnel', 'morphing',
-            'depthlines', 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid'
+            'fractal', 'tunnel', 'morphing'
         ];
         this.currentIndex = 0;
         this.cycleMode = true; // Always cycle through all
@@ -411,6 +411,12 @@ export class VisualizerSelector {
         if (!metadata) return 'No audio data available';
         
         const reasons = {
+            depthlines: 'Depth Lines - 3D lines coming in/out of screen (Apple Music style)',
+            warptunnel: 'Warp Tunnel - 3D rushing tunnel effect',
+            '3dbars': '3D Spectrum Bars - 3D perspective frequency bars',
+            orbitlines: 'Orbit Lines - 3D orbiting trails',
+            starburst: 'Starburst - Lines exploding with 3D depth',
+            horizongrid: 'Horizon Grid - Retro 3D perspective grid',
             tornado: 'Tornado spiral - perfect for energetic, dynamic tracks',
             cyclone: 'Cyclone vortex - ideal for swirling, balanced audio',
             spiral1: 'Double spiral - counter-rotating spirals',
@@ -424,13 +430,7 @@ export class VisualizerSelector {
             mandala: 'Mandala - radial symmetric patterns',
             fractal: 'Fractal - recursive geometric patterns',
             tunnel: 'Tunnel portal - 3D depth effect',
-            morphing: 'Morphing shapes - geometric shape transformations',
-            depthlines: 'Depth Lines - 3D lines coming in/out of screen with camera movement',
-            warptunnel: 'Warp Tunnel - 3D tunnel rushing with particle rings',
-            '3dbars': '3D Spectrum Bars - frequency bars with 3D perspective',
-            orbitlines: 'Orbit Lines - 3D orbiting line trails with particles',
-            starburst: 'Starburst - lines exploding outward with 3D depth',
-            horizongrid: 'Horizon Grid - 3D perspective grid with sun/orb'
+            morphing: 'Morphing shapes - geometric shape transformations'
         };
         
         return reasons[visualizer] || 'Unknown visualizer';
