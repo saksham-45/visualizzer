@@ -1,6 +1,7 @@
 modules = ["nodejs-20", "web", "python-3.12"]
 [agent]
 expertMode = true
+integrations = ["github:1.0.0"]
 
 [nix]
 channel = "stable-25_05"
@@ -32,10 +33,6 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 34937
-externalPort = 3003
 
 [[ports]]
 localPort = 36899
