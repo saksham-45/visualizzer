@@ -30,13 +30,21 @@ An advanced, real-time audio visualizer web application that creates beautiful v
 ```
 
 ### Key Features
-1. **Multiple Visualizer Types**: Tornado Spiral, Cyclone Vortex, Double Spiral, Kaleidoscope, Mandala, Fractal, Tunnel Portal, and more
+1. **Classic Visualizer Types**: Tornado Spiral, Cyclone Vortex, Double Spiral, Kaleidoscope, Mandala, Fractal, Tunnel Portal, Morphing, Trippy, and more
 2. **Intelligent Auto-Selection**: Automatically chooses the best visualizer based on audio characteristics (frequency distribution, amplitude, spectral centroid, etc.)
 3. **Smooth Transitions**: Organic morphing between different visualizers
 4. **Audio Input Options**: Microphone or System Audio (requires browser permission)
-5. **Fullscreen Mode**: Immersive visualization experience
+5. **Immersive Fullscreen Mode**: Pitch black background with auto-hiding controls
 
 ## Recent Changes
+
+### December 8, 2025 - Premium Visualizer Removal & Immersive UI
+- Removed all 9 premium visualizers (liquid metal, plasma field, neon grid, etc.) - now classic visualizers only
+- Implemented immersive fullscreen experience with pitch black (#000000) background
+- Auto-hiding controls: UI fades out after 3 seconds of mouse inactivity
+- Controls reappear on any mouse/keyboard/touch activity
+- Transparent control overlays for minimal visual interference
+- Fixed critical JavaScript error from deleted premiumVisualizers.js import
 
 ### December 1, 2025 - UI Auto-Hide & Visualizer Fixes
 - Implemented YouTube-style auto-hide UI: header and controls fade out after 3 seconds of inactivity during playback
