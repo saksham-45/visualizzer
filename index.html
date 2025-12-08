@@ -84,13 +84,12 @@
             console.log('Canvas:', document.querySelector('#visualizerCanvas'));
         });
         
-        // Show a simple test pattern if canvas exists
+        // Initialize canvas with black background
         window.addEventListener('load', function() {
             const canvas = document.getElementById('visualizerCanvas');
             if (canvas) {
                 const ctx = canvas.getContext('2d');
-                // Draw a test pattern to verify canvas works
-                ctx.fillStyle = 'rgba(100, 100, 255, 0.3)';
+                ctx.fillStyle = '#000000';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 console.log('Canvas initialized:', canvas.width, 'x', canvas.height);
             }
