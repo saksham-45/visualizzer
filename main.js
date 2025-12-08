@@ -215,15 +215,15 @@ class VisualizerApp {
             
             // Set initial visualizer
             if (this.autoModeCheckbox.checked) {
-                // Set a default premium visualizer, auto-selector will change it based on audio
-                this.visualizers.setVisualizer('enhancedTunnel');
+                // Set a default classic visualizer, auto-selector will change it based on audio
+                this.visualizers.setVisualizer('tornado');
             } else {
                 const selectedViz = this.visualizerSelect.value;
                 if (selectedViz !== 'auto') {
                     this.visualizers.setVisualizer(selectedViz);
                 } else {
-                    // Default to premium enhanced tunnel
-                    this.visualizers.setVisualizer('enhancedTunnel');
+                    // Default to classic tornado
+                    this.visualizers.setVisualizer('tornado');
                 }
             }
             
