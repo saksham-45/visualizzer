@@ -75,6 +75,7 @@ html, body {
     flex-wrap: wrap;
     justify-content: center;
     align-items: center;
+    pointer-events: auto;
 }
 
 .btn {
@@ -88,6 +89,9 @@ html, body {
     transition: all 0.3s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
 }
 
 .btn-primary {
@@ -125,6 +129,9 @@ html, body {
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s ease;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
 }
 
 .select:hover {
@@ -145,6 +152,9 @@ html, body {
     font-size: 14px;
     color: #ffffff;
     padding: 5px;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
 }
 
 .checkbox-label input[type="checkbox"] {
