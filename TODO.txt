@@ -1,0 +1,1 @@
+Please update the particle nebul and spectrum halo circle per the latest instructions: make all particles brighter, bigger, and flashier, tie all movements/disturbances to the music input, overhaul spectrum halo so it rotates and emits smoke-like particles sync’d with music and beat from each bubble, or delete it if not possible

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Visualizzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000000;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        
+        .test-container {
+            position: relative;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        h1 {
+            color: #ffffff;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: #4a90e2;
+            color: #ffffff;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: #357abd;
+        }
+        
+        .select {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            padding: 12px 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            font-size: 16px;
+            margin: 5px;
+        }
+        
+        .checkbox-label {
+            color: #ffffff;
+            margin: 10px 5px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Visualizzer - Test Page</h1>
+        <p>If you can see this, the page is loading correctly.</p>
+        <button class="btn">Test Button</button>
+        <select class="select">
+            <option>Test Option 1</option>
+            <option>Test Option 2</option>
+        </select>
+        <label class="checkbox-label">
+            <input type="checkbox"> Test Checkbox
+        </label>
+    </div>
+    
+    <script>
+        console.log('Test page loaded');
+        document.querySelector('.btn').addEventListener('click', () => {
+            alert('Button works!');
+        });
+    </script>
+</body>
+</html>
+

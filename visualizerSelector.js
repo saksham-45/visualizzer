@@ -14,8 +14,13 @@ export class VisualizerSelector {
         this.targetTimePerVisualizer = 6500; // 6.5 seconds per visualizer
         this.switchCount = 0;
         
-        // All available visualizers in order
+        // All available visualizers in order (premium first, then classic)
         this.allVisualizers = [
+            // Premium visualizers
+            'appleWaveform', 'circularHarmonic', 'frequencyBarGalaxy', 'enhancedTunnel',
+            'particleNebula', 'mathematicalSpiral', 'spectrumCircleHalo', 'fractalBloom',
+            '3DGeometryShapeshifter',
+            // Classic visualizers
             'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
             'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala',
             'fractal', 'tunnel', 'morphing'
@@ -410,6 +415,17 @@ export class VisualizerSelector {
         if (!metadata) return 'No audio data available';
         
         const reasons = {
+            // Premium visualizers
+            appleWaveform: 'Apple-Music Style Waveform - fluid, ribbon-like wave with spectral gradients',
+            circularHarmonic: 'Circular Harmonic Wave - radial waves expanding in concentric circles',
+            frequencyBarGalaxy: 'Frequency Bar Galaxy - 3D bar field twisting into spirals and helices',
+            enhancedTunnel: 'Enhanced Tunnel - infinite tunnel with depth-mapped lights and smooth zoom',
+            particleNebula: 'Particle Nebula - millions of glowing particles with vector field motion',
+            mathematicalSpiral: 'Mathematical Spiral - Fibonacci, Archimedean, and Lissajous curves',
+            spectrumCircleHalo: 'Spectrum Circle Halo - multi-layer frequency ring with liquid glass refraction',
+            fractalBloom: 'Fractal Bloom - fractal tree that grows and blooms with frequency bands',
+            '3DGeometryShapeshifter': '3D Geometry Shapeshifter - morphs between tetrahedron, cube, sphere, and torus',
+            // Classic visualizers
             tornado: 'Tornado spiral - perfect for energetic, dynamic tracks',
             cyclone: 'Cyclone vortex - ideal for swirling, balanced audio',
             spiral1: 'Double spiral - counter-rotating spirals',

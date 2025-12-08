@@ -1,7 +1,10 @@
 /**
  * Mesh-Based Visualizers Module
  * Creates cloth-like flexible 2D surfaces that fill the screen
+ * Enhanced with premium visualizers
  */
+import { PremiumVisualizers } from './premiumVisualizers.js';
+
 export class MeshVisualizers {
     constructor(canvas, audioCapture, audioAnalyzer) {
         this.canvas = canvas;
@@ -12,6 +15,9 @@ export class MeshVisualizers {
         this.transitionProgress = 1;
         this.targetVisualizer = null;
         this.previousVisualizer = null;
+        
+        // Initialize premium visualizers
+        this.premiumVisualizers = new PremiumVisualizers(canvas, audioCapture, audioAnalyzer);
         
         // Mesh properties - higher resolution for smoother cloth effect
         this.meshResolution = 60; // Grid density for cloth-like effect (increased for better quality)
@@ -27,6 +33,19 @@ export class MeshVisualizers {
         this.lastTransitionTime = 0;
         this.minTransitionInterval = 8000; // Minimum 8 seconds between transitions
         
+        // Premium visualizer types
+        this.premiumTypes = [
+            'appleWaveform',
+            'circularHarmonic',
+            'frequencyBarGalaxy',
+            'enhancedTunnel',
+            'particleNebula',
+            'mathematicalSpiral',
+            'spectrumCircleHalo',
+            'fractalBloom',
+            '3DGeometryShapeshifter'
+        ];
+        
         // Resize canvas
         this.resize();
         window.addEventListener('resize', () => this.resize());
@@ -39,6 +58,11 @@ export class MeshVisualizers {
         this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
         this.width = rect.width;
         this.height = rect.height;
+        
+        // Resize premium visualizers
+        if (this.premiumVisualizers) {
+            this.premiumVisualizers.resize();
+        }
     }
 
     setVisualizer(type, forceTransition = false) {
@@ -162,14 +186,50 @@ export class MeshVisualizers {
 
     render() {
         const audioData = this.audioCapture.getAudioData();
+        const visualizerType = this.targetVisualizer || this.currentVisualizer;
+        
+        // If no audio data, show a default visualization or clear screen
         if (!audioData) {
-            this.ctx.clearRect(0, 0, this.width, this.height);
+            // Show a simple idle animation
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+            
+            // Draw a simple pulsing circle to show the app is working
+            const centerX = this.width / 2;
+            const centerY = this.height / 2;
+            const pulse = Math.sin(this.time * 2) * 0.5 + 0.5;
+            const radius = 50 + pulse * 30;
+            
+            this.ctx.strokeStyle = `hsla(${this.time * 10 % 360}, 70%, 60%, 0.5)`;
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Show text
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            this.ctx.font = '24px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Click "Start" to begin visualization', centerX, centerY + 100);
+            
+            this.time += 0.016;
             return;
         }
 
         this.time += 0.016; // Approximate frame time
         const metadata = this.audioAnalyzer.analyze();
-        const visualizerType = this.targetVisualizer || this.currentVisualizer;
+
+        // Check if it's a premium visualizer
+        if (this.premiumTypes.includes(visualizerType)) {
+            // Handle premium visualizer transitions
+            if (this.targetVisualizer && this.previousVisualizer && this.transitionProgress < 1) {
+                this.renderPremiumTransition(this.previousVisualizer, this.targetVisualizer, 
+                                            this.transitionProgress, audioData, metadata);
+            } else {
+                this.premiumVisualizers.render(visualizerType, audioData, metadata);
+            }
+            return;
+        }
 
         // Darker fade for more vibrant colors
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
@@ -177,8 +237,23 @@ export class MeshVisualizers {
 
         // Handle morphing transition
         if (this.targetVisualizer && this.previousVisualizer && this.transitionProgress < 1) {
-            this.renderMorphingMesh(this.previousVisualizer, this.targetVisualizer, 
-                                   this.transitionProgress, audioData, metadata);
+            // Check if transitioning between premium and classic
+            const fromIsPremium = this.premiumTypes.includes(this.previousVisualizer);
+            const toIsPremium = this.premiumTypes.includes(this.targetVisualizer);
+            
+            if (fromIsPremium && toIsPremium) {
+                // Both premium - use premium transition
+                this.renderPremiumTransition(this.previousVisualizer, this.targetVisualizer, 
+                                            this.transitionProgress, audioData, metadata);
+            } else if (!fromIsPremium && !toIsPremium) {
+                // Both classic - use classic transition
+                this.renderMorphingMesh(this.previousVisualizer, this.targetVisualizer, 
+                                       this.transitionProgress, audioData, metadata);
+            } else {
+                // Mixed transition - blend between systems
+                this.renderMixedTransition(this.previousVisualizer, this.targetVisualizer, 
+                                          this.transitionProgress, audioData, metadata);
+            }
         } else {
             this.renderMeshVisualizer(visualizerType, audioData, metadata);
         }
@@ -186,6 +261,177 @@ export class MeshVisualizers {
         // Render particles for bars visualizer (optional - can be removed)
         if (visualizerType === 'bars') {
             // Uncomment to see particles: this.renderParticles();
+        }
+    }
+    
+    /**
+     * Render smooth transition between premium visualizers
+     * Dream-like transitions with lens distortion, chromatic drift, and time-warping
+     */
+    renderPremiumTransition(fromType, toType, t, audioData, metadata) {
+        // Use dream-like transition with multiple easing functions
+        const easeT = this.easeInOutCubic(t);
+        const easeSine = Math.sin(t * Math.PI);
+        const easeBezier = t * t * (3 - 2 * t); // Smoothstep
+        
+        // Determine transition style based on visualizer types
+        const transitionStyle = this.getTransitionStyle(fromType, toType);
+        
+        if (transitionStyle === 'dissolve') {
+            // Shapes dissolve into particles
+            this.renderDissolveTransition(fromType, toType, easeT, audioData, metadata);
+        } else if (transitionStyle === 'spiral') {
+            // Spirals unwrap into bars
+            this.renderSpiralUnwrapTransition(fromType, toType, easeT, audioData, metadata);
+        } else if (transitionStyle === 'tunnel') {
+            // Tunnel collapses into point then expands
+            this.renderTunnelCollapseTransition(fromType, toType, easeT, audioData, metadata);
+        } else {
+            // Default: smooth blend with lens distortion
+            this.renderSmoothBlendTransition(fromType, toType, easeT, easeSine, audioData, metadata);
+        }
+    }
+    
+    /**
+     * Get transition style based on visualizer types
+     */
+    getTransitionStyle(fromType, toType) {
+        const spiralTypes = ['spiral1', 'spiral2', 'spiral3', 'spiral4', 'mathematicalSpiral'];
+        const barTypes = ['frequencyBarGalaxy', 'bars'];
+        const tunnelTypes = ['enhancedTunnel', 'tunnel'];
+        
+        if (spiralTypes.includes(fromType) && barTypes.includes(toType)) {
+            return 'spiral';
+        } else if (tunnelTypes.includes(fromType) || tunnelTypes.includes(toType)) {
+            return 'tunnel';
+        } else if (fromType === 'particleNebula' || toType === 'particleNebula') {
+            return 'dissolve';
+        }
+        return 'blend';
+    }
+    
+    /**
+     * Smooth blend transition with lens distortion
+     */
+    renderSmoothBlendTransition(fromType, toType, easeT, easeSine, audioData, metadata) {
+        // Lens distortion effect
+        const distortion = easeSine * 0.05;
+        
+        // Render old visualizer fading out with blur
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - easeT;
+        const blurAmount = (1 - easeT) * 15;
+        if (blurAmount > 0.1) {
+            this.ctx.filter = `blur(${blurAmount}px)`;
+        }
+        this.ctx.scale(1 + distortion, 1 + distortion);
+        this.ctx.translate(-this.width * distortion / 2, -this.height * distortion / 2);
+        this.premiumVisualizers.render(fromType, audioData, metadata);
+        this.ctx.restore();
+        
+        // Render new visualizer fading in with blur
+        this.ctx.save();
+        this.ctx.globalAlpha = easeT;
+        const blurAmountIn = (1 - easeT) * 15;
+        if (blurAmountIn > 0.1) {
+            this.ctx.filter = `blur(${blurAmountIn}px)`;
+        }
+        this.ctx.scale(1 - distortion, 1 - distortion);
+        this.ctx.translate(this.width * distortion / 2, this.height * distortion / 2);
+        this.premiumVisualizers.render(toType, audioData, metadata);
+        this.ctx.restore();
+        
+        // Chromatic drift effect
+        if (easeT > 0.2 && easeT < 0.8) {
+            const drift = easeSine * 8;
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = 'screen';
+            this.ctx.globalAlpha = 0.2;
+            
+            // Red channel
+            this.ctx.translate(drift, 0);
+            this.premiumVisualizers.render(toType, audioData, metadata);
+            
+            // Blue channel
+            this.ctx.translate(-drift * 2, 0);
+            this.premiumVisualizers.render(toType, audioData, metadata);
+            
+            this.ctx.restore();
+        }
+    }
+    
+    /**
+     * Dissolve transition - shapes dissolve into particles
+     */
+    renderDissolveTransition(fromType, toType, easeT, audioData, metadata) {
+        // Render old visualizer with particle-like fade
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - easeT;
+        this.ctx.globalCompositeOperation = 'multiply';
+        this.premiumVisualizers.render(fromType, audioData, metadata);
+        this.ctx.restore();
+        
+        // Render new visualizer emerging from particles
+        this.ctx.save();
+        this.ctx.globalAlpha = easeT;
+        const particleScale = 1 + (1 - easeT) * 0.3;
+        this.ctx.scale(particleScale, particleScale);
+        this.ctx.translate(-this.width * (particleScale - 1) / 2, -this.height * (particleScale - 1) / 2);
+        this.premiumVisualizers.render(toType, audioData, metadata);
+        this.ctx.restore();
+    }
+    
+    /**
+     * Spiral unwrap transition
+     */
+    renderSpiralUnwrapTransition(fromType, toType, easeT, audioData, metadata) {
+        // Spiral unwraps into linear bars
+        const spiralProgress = 1 - easeT;
+        const barProgress = easeT;
+        
+        // Render spiral unwrapping
+        if (spiralProgress > 0.1) {
+            this.ctx.save();
+            this.ctx.globalAlpha = spiralProgress;
+            this.ctx.scale(1 + (1 - spiralProgress) * 0.5, 1);
+            this.premiumVisualizers.render(fromType, audioData, metadata);
+            this.ctx.restore();
+        }
+        
+        // Render bars emerging
+        if (barProgress > 0.1) {
+            this.ctx.save();
+            this.ctx.globalAlpha = barProgress;
+            this.premiumVisualizers.render(toType, audioData, metadata);
+            this.ctx.restore();
+        }
+    }
+    
+    /**
+     * Tunnel collapse transition
+     */
+    renderTunnelCollapseTransition(fromType, toType, easeT, audioData, metadata) {
+        // Tunnel collapses to point then expands
+        if (easeT < 0.5) {
+            // Collapse phase
+            const collapseT = easeT * 2;
+            this.ctx.save();
+            this.ctx.globalAlpha = 1 - collapseT;
+            const scale = 1 - collapseT;
+            this.ctx.scale(scale, scale);
+            this.ctx.translate(this.width * (1 - scale) / 2, this.height * (1 - scale) / 2);
+            this.premiumVisualizers.render(fromType, audioData, metadata);
+            this.ctx.restore();
+        } else {
+            // Expand phase
+            const expandT = (easeT - 0.5) * 2;
+            this.ctx.save();
+            this.ctx.globalAlpha = expandT;
+            const scale = expandT;
+            this.ctx.scale(scale, scale);
+            this.ctx.translate(this.width * (1 - scale) / 2, this.height * (1 - scale) / 2);
+            this.premiumVisualizers.render(toType, audioData, metadata);
+            this.ctx.restore();
         }
     }
 
@@ -375,6 +621,42 @@ export class MeshVisualizers {
         }
 
         this.renderMeshAsCloth(mesh, audioData, metadata);
+    }
+    
+    /**
+     * Check if visualizer type is premium
+     */
+    isPremiumType(type) {
+        return this.premiumTypes.includes(type);
+    }
+    
+    /**
+     * Render transition between premium and classic visualizers
+     */
+    renderMixedTransition(fromType, toType, t, audioData, metadata) {
+        const easeT = this.easeInOutCubic(t);
+        
+        // Render old visualizer fading out
+        this.ctx.save();
+        this.ctx.globalAlpha = 1 - easeT;
+        
+        if (this.premiumTypes.includes(fromType)) {
+            this.premiumVisualizers.render(fromType, audioData, metadata);
+        } else {
+            this.renderMeshVisualizer(fromType, audioData, metadata);
+        }
+        this.ctx.restore();
+        
+        // Render new visualizer fading in
+        this.ctx.save();
+        this.ctx.globalAlpha = easeT;
+        
+        if (this.premiumTypes.includes(toType)) {
+            this.premiumVisualizers.render(toType, audioData, metadata);
+        } else {
+            this.renderMeshVisualizer(toType, audioData, metadata);
+        }
+        this.ctx.restore();
     }
 
     /**

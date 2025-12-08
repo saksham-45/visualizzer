@@ -5,39 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Audio Visualizer</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Ensure body is always visible */
+        body {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            background: #000000 !important;
+            color: #ffffff !important;
+        }
+        .container {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Visualizzer</h1>
-            <div class="controls">
-                <button id="startBtn" class="btn btn-primary">Start</button>
-                <button id="stopBtn" class="btn btn-secondary" disabled>Stop</button>
-                <button id="fullscreenBtn" class="btn btn-secondary">Fullscreen</button>
-                <select id="audioSource" class="select">
+            <div class="controls" style="display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 10002 !important; position: relative !important;">
+                <button id="startBtn" class="btn btn-primary" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background: #4a90e2 !important; color: white !important; padding: 12px 24px !important; border: none !important; border-radius: 8px !important; cursor: pointer !important; font-size: 16px !important; z-index: 10003 !important; position: relative !important;">Start</button>
+                <button id="stopBtn" class="btn btn-secondary" disabled style="display: inline-block !important; visibility: visible !important; opacity: 0.5 !important; background: rgba(255,255,255,0.15) !important; color: white !important; padding: 12px 24px !important; border: 2px solid rgba(255,255,255,0.4) !important; border-radius: 8px !important; cursor: not-allowed !important; font-size: 16px !important; z-index: 10003 !important; position: relative !important;">Stop</button>
+                <button id="fullscreenBtn" class="btn btn-secondary" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background: rgba(255,255,255,0.15) !important; color: white !important; padding: 12px 24px !important; border: 2px solid rgba(255,255,255,0.4) !important; border-radius: 8px !important; cursor: pointer !important; font-size: 16px !important; z-index: 10003 !important; position: relative !important;">Fullscreen</button>
+                <select id="audioSource" class="select" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background: rgba(255,255,255,0.2) !important; color: white !important; padding: 12px 20px !important; border: 2px solid rgba(255,255,255,0.5) !important; border-radius: 8px !important; cursor: pointer !important; font-size: 16px !important; z-index: 10003 !important; position: relative !important;">
                     <option value="mic">Microphone</option>
                     <option value="system">System Audio (Experimental)</option>
                 </select>
-                <label class="checkbox-label">
+                <label class="checkbox-label" style="display: flex !important; visibility: visible !important; opacity: 1 !important; color: white !important; cursor: pointer !important; font-size: 16px !important; z-index: 10003 !important; position: relative !important;">
                     <input type="checkbox" id="autoMode" checked>
                     <span>Auto-Select Visualizer</span>
                 </label>
-                <select id="visualizerSelect" class="select">
+                <select id="visualizerSelect" class="select" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important; background: rgba(255,255,255,0.2) !important; color: white !important; padding: 12px 20px !important; border: 2px solid rgba(255,255,255,0.5) !important; border-radius: 8px !important; cursor: pointer !important; font-size: 16px !important; z-index: 10003 !important; position: relative !important;">
                     <option value="auto">Auto (Recommended)</option>
-                    <option value="tornado">Tornado Spiral</option>
-                    <option value="cyclone">Cyclone Vortex</option>
-                    <option value="spiral1">Double Spiral</option>
-                    <option value="spiral2">Chaotic Spiral</option>
-                    <option value="spiral3">Nested Spirals</option>
-                    <option value="spiral4">Spiral Trails</option>
-                    <option value="tracing">Tracing Waves</option>
-                    <option value="crossing">Crossing Planes</option>
-                    <option value="combined">Combined Effects</option>
-                    <option value="kaleidoscope">Kaleidoscope</option>
-                    <option value="mandala">Mandala</option>
-                    <option value="fractal">Fractal</option>
-                    <option value="tunnel">Tunnel Portal</option>
-                    <option value="morphing">Morphing Shapes</option>
+                    <optgroup label="Premium Visualizers">
+                        <option value="appleWaveform">Apple-Music Waveform</option>
+                        <option value="circularHarmonic">Circular Harmonic Wave</option>
+                        <option value="frequencyBarGalaxy">Frequency Bar Galaxy</option>
+                        <option value="enhancedTunnel">Enhanced Tunnel (Primary)</option>
+                        <option value="particleNebula">Particle Nebula</option>
+                        <option value="mathematicalSpiral">Mathematical Spiral</option>
+                        <option value="spectrumCircleHalo">Spectrum Circle Halo</option>
+                        <option value="fractalBloom">Fractal Bloom</option>
+                        <option value="3DGeometryShapeshifter">3D Geometry Shapeshifter</option>
+                    </optgroup>
+                    <optgroup label="Classic Visualizers">
+                        <option value="tornado">Tornado Spiral</option>
+                        <option value="cyclone">Cyclone Vortex</option>
+                        <option value="spiral1">Double Spiral</option>
+                        <option value="spiral2">Chaotic Spiral</option>
+                        <option value="spiral3">Nested Spirals</option>
+                        <option value="spiral4">Spiral Trails</option>
+                        <option value="tracing">Tracing Waves</option>
+                        <option value="crossing">Crossing Planes</option>
+                        <option value="combined">Combined Effects</option>
+                        <option value="kaleidoscope">Kaleidoscope</option>
+                        <option value="mandala">Mandala</option>
+                        <option value="fractal">Fractal</option>
+                        <option value="tunnel">Tunnel Portal</option>
+                        <option value="morphing">Morphing Shapes</option>
+                    </optgroup>
                 </select>
             </div>
         </div>
@@ -65,8 +93,41 @@
         </div>
     </div>
 
+    <script>
+        // Error handler to catch and display any JavaScript errors
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript Error:', e.error);
+            // Show error on page
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position:fixed;top:10px;left:10px;background:red;color:white;padding:20px;z-index:10000;border-radius:5px;max-width:500px;';
+            errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + (e.error ? e.error.message : e.message) + '<br><small>' + (e.filename || 'unknown') + ':' + (e.lineno || '?') + '</small><br><button onclick="this.parentElement.remove()" style="margin-top:10px;padding:5px 10px;">Close</button>';
+            document.body.appendChild(errorDiv);
+        });
+        
+        // Log when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded');
+            console.log('Container:', document.querySelector('.container'));
+            console.log('Header:', document.querySelector('.header'));
+            console.log('Controls:', document.querySelector('.controls'));
+            console.log('Canvas:', document.querySelector('#visualizerCanvas'));
+        });
+        
+        // Show a simple test pattern if canvas exists
+        window.addEventListener('load', function() {
+            const canvas = document.getElementById('visualizerCanvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                // Draw a test pattern to verify canvas works
+                ctx.fillStyle = 'rgba(100, 100, 255, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                console.log('Canvas initialized:', canvas.width, 'x', canvas.height);
+            }
+        });
+    </script>
     <script type="module" src="audioCapture.js"></script>
     <script type="module" src="audioAnalyzer.js"></script>
+    <script type="module" src="premiumVisualizers.js"></script>
     <script type="module" src="meshVisualizers.js"></script>
     <script type="module" src="visualizerSelector.js"></script>
     <script type="module" src="main.js"></script>

@@ -47,17 +47,19 @@ class VisualizerApp {
     }
 
     setupAutoHideUI() {
-        document.addEventListener('mousemove', () => this.onUserActivity());
-        document.addEventListener('mousedown', () => this.onUserActivity());
-        document.addEventListener('keydown', () => this.onUserActivity());
-        document.addEventListener('touchstart', () => this.onUserActivity());
+        // Disabled auto-hide - UI stays visible
+        // document.addEventListener('mousemove', () => this.onUserActivity());
+        // document.addEventListener('mousedown', () => this.onUserActivity());
+        // document.addEventListener('keydown', () => this.onUserActivity());
+        // document.addEventListener('touchstart', () => this.onUserActivity());
     }
 
     onUserActivity() {
-        if (this.isRunning) {
-            this.showUI();
-            this.startUIHideTimer();
-        }
+        // Disabled
+        // if (this.isRunning) {
+        //     this.showUI();
+        //     this.startUIHideTimer();
+        // }
     }
 
     showUI() {
@@ -68,19 +70,21 @@ class VisualizerApp {
     }
 
     hideUI() {
-        if (this.isRunning) {
-            this.uiVisible = false;
-            document.body.classList.add('hide-ui');
-        }
+        // Disabled - UI always visible
+        // if (this.isRunning) {
+        //     this.uiVisible = false;
+        //     document.body.classList.add('hide-ui');
+        // }
     }
 
     startUIHideTimer() {
-        if (this.uiHideTimeout) {
-            clearTimeout(this.uiHideTimeout);
-        }
-        if (this.isRunning) {
-            this.uiHideTimeout = setTimeout(() => this.hideUI(), this.UI_HIDE_DELAY);
-        }
+        // Disabled
+        // if (this.uiHideTimeout) {
+        //     clearTimeout(this.uiHideTimeout);
+        // }
+        // if (this.isRunning) {
+        //     this.uiHideTimeout = setTimeout(() => this.hideUI(), this.UI_HIDE_DELAY);
+        // }
     }
 
     attachEventListeners() {
@@ -211,21 +215,25 @@ class VisualizerApp {
             
             // Set initial visualizer
             if (this.autoModeCheckbox.checked) {
-                // Set a default visualizer, auto-selector will change it based on audio
-                this.visualizers.setVisualizer('wave');
+                // Set a default premium visualizer, auto-selector will change it based on audio
+                this.visualizers.setVisualizer('enhancedTunnel');
             } else {
                 const selectedViz = this.visualizerSelect.value;
                 if (selectedViz !== 'auto') {
                     this.visualizers.setVisualizer(selectedViz);
                 } else {
-                    this.visualizers.setVisualizer('wave');
+                    // Default to premium enhanced tunnel
+                    this.visualizers.setVisualizer('enhancedTunnel');
                 }
             }
             
             this.isRunning = true;
+            
+            // Start animation loop immediately (even without audio)
             this.animate();
             
-            this.startUIHideTimer();
+            // UI stays visible - no auto-hide
+            // this.startUIHideTimer();
             
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
@@ -272,7 +280,7 @@ class VisualizerApp {
     animate() {
         if (!this.isRunning) return;
         
-        // Analyze audio
+        // Analyze audio (may be null if not started)
         const metadata = this.audioAnalyzer?.analyze();
         
         // Auto-select visualizer if enabled - always use smooth transitions
@@ -288,8 +296,10 @@ class VisualizerApp {
             }
         }
         
-        // Render visualizer
-        this.visualizers?.render();
+        // Render visualizer (will show idle animation if no audio)
+        if (this.visualizers) {
+            this.visualizers.render();
+        }
         
         // Update info display
         this.updateInfoDisplay(metadata);
