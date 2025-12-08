@@ -82,13 +82,20 @@ export class MeshVisualizers {
             this.meltingDisturbances.clear();
         }
         
+        // If no current visualizer, set it directly without transition
+        if (!this.currentVisualizer) {
+            this.currentVisualizer = type;
+            this.lastTransitionTime = now;
+            return;
+        }
+        
         this.previousVisualizer = this.currentVisualizer;
         this.targetVisualizer = type;
         this.transitionProgress = 0;
         this.lastTransitionTime = now;
         this.transitionParticles = []; // Clear old particles
         
-        const transitionDuration = 1200; // Ultra-fast smooth blend
+        const transitionDuration = 800; // Faster transitions
         const startTime = Date.now();
         
         const animateTransition = () => {
@@ -200,19 +207,28 @@ export class MeshVisualizers {
         this.lastFrameTime = now;
         this.time += deltaTime;
         
-        const metadata = this.audioAnalyzer.analyze();
+        const metadata = this.audioAnalyzer.analyze() || { amplitude: 0, energyBands: {}, rhythm: {} };
         const visualizerType = this.targetVisualizer || this.currentVisualizer || 'wave';
 
-        this.camera.update(metadata, deltaTime);
+        try {
+            this.camera.update(metadata, deltaTime);
+        } catch (e) {
+            console.error('Camera update error:', e);
+        }
 
         this.ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
         this.ctx.fillRect(0, 0, this.width, this.height);
 
-        if (this.targetVisualizer && this.previousVisualizer && this.transitionProgress < 1) {
-            this.renderMorphingMesh(this.previousVisualizer, this.targetVisualizer, 
-                                   this.transitionProgress, audioData, metadata);
-        } else {
-            this.renderMeshVisualizer(visualizerType, audioData, metadata);
+        try {
+            if (this.targetVisualizer && this.previousVisualizer && this.transitionProgress < 1) {
+                this.renderMorphingMesh(this.previousVisualizer, this.targetVisualizer, 
+                                       this.transitionProgress, audioData, metadata);
+            } else {
+                this.renderMeshVisualizer(visualizerType, audioData, metadata);
+            }
+        } catch (e) {
+            console.error('Render error for', visualizerType, ':', e);
+            this.renderMeshVisualizer('wave', audioData, metadata);
         }
     }
     
@@ -1023,14 +1039,24 @@ export class MeshVisualizers {
         }
         
         // Render old visualizer fading out
-        this.ctx.globalAlpha = 1 - t;
-        this.renderMeshVisualizer(fromType, audioData, metadata);
-        this.ctx.globalAlpha = 1;
+        try {
+            this.ctx.globalAlpha = 1 - t;
+            if (fromType) this.renderMeshVisualizer(fromType, audioData, metadata);
+            this.ctx.globalAlpha = 1;
+        } catch (e) {
+            console.error('Error rendering from visualizer:', fromType, e);
+            this.ctx.globalAlpha = 1;
+        }
         
         // Render new visualizer fading in
-        this.ctx.globalAlpha = t;
-        this.renderMeshVisualizer(toType, audioData, metadata);
-        this.ctx.globalAlpha = 1;
+        try {
+            this.ctx.globalAlpha = t;
+            if (toType) this.renderMeshVisualizer(toType, audioData, metadata);
+            this.ctx.globalAlpha = 1;
+        } catch (e) {
+            console.error('Error rendering to visualizer:', toType, e);
+            this.ctx.globalAlpha = 1;
+        }
         
         // Update and render transition particles as a smooth bridge
         this.updateTransitionParticles(t, audioData, metadata);
@@ -1863,13 +1889,14 @@ export class MeshVisualizers {
      * Uses camera for beat-reactive movement
      */
     renderDepthLines(audioData, metadata) {
+        if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         const lineCount = 80;
         
-        const intensity = this.camera.getIntensityMultiplier();
-        const speed = this.time * 3 + this.camera.z * 0.02;
+        const intensity = this.camera ? this.camera.getIntensityMultiplier() : 1;
+        const speed = this.time * 3 + (this.camera ? this.camera.z * 0.02 : 0);
         
         for (let i = 0; i < lineCount; i++) {
             const angle = (i / lineCount) * Math.PI * 2;
@@ -1889,7 +1916,7 @@ export class MeshVisualizers {
                 const x3d = this.fastCos(angle) * radius;
                 const y3d = this.fastSin(angle) * radius;
                 
-                const projected = this.camera.project(x3d, y3d, z3d, centerX, centerY);
+                const projected = this.camera ? this.camera.project(x3d, y3d, z3d, centerX, centerY) : { x: centerX + x3d * 0.5, y: centerY + y3d * 0.5, scale: 1 };
                 if (!projected) continue;
                 
                 const hue = (i * 4.5 + t * 60 + this.time * 70) % 360;
@@ -1920,14 +1947,15 @@ export class MeshVisualizers {
      * Apple Music Style: Warp Tunnel - 3D tunnel rushing towards viewer
      */
     renderWarpTunnel(audioData, metadata) {
+        if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         const rings = 25;
         const segments = 36;
         
-        const intensity = this.camera.getIntensityMultiplier();
-        const speed = this.time * 3.5 + this.camera.z * 0.02;
+        const intensity = this.camera ? this.camera.getIntensityMultiplier() : 1;
+        const speed = this.time * 3.5 + (this.camera ? this.camera.z * 0.02 : 0);
         const maxRadius = Math.max(this.width, this.height) * 0.7;
         
         for (let ring = 0; ring < rings; ring++) {
@@ -1953,7 +1981,7 @@ export class MeshVisualizers {
                 const x3d = this.fastCos(angle) * radius;
                 const y3d = this.fastSin(angle) * radius;
                 
-                const projected = this.camera.project(x3d, y3d, z3d, centerX, centerY);
+                const projected = this.camera ? this.camera.project(x3d, y3d, z3d, centerX, centerY) : { x: centerX + x3d * 0.5, y: centerY + y3d * 0.5, scale: 1 };
                 if (projected) points.push({ ...projected, angle, segEnergy });
             }
             
@@ -2003,14 +2031,15 @@ export class MeshVisualizers {
      * Apple Music Style: 3D Spectrum Bars - Frequency bars with 3D perspective
      */
     render3DSpectrumBars(audioData, metadata) {
+        if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height * 0.95;
         const barCount = 48;
         const rows = 6;
         
-        const intensity = this.camera.getIntensityMultiplier();
-        const cameraOffset = this.camera.x * 0.3;
+        const intensity = this.camera ? this.camera.getIntensityMultiplier() : 1;
+        const cameraOffset = this.camera ? this.camera.x * 0.3 : 0;
         
         for (let row = rows - 1; row >= 0; row--) {
             const z3d = row * 120 - 200;
@@ -2021,7 +2050,7 @@ export class MeshVisualizers {
                 const wave = (timeData[freqIndex] / 128.0 - 1);
                 
                 const xPos = (i / barCount - 0.5) * this.width * 1.2 + cameraOffset;
-                const projected = this.camera.project(xPos, 0, z3d, centerX, centerY);
+                const projected = this.camera ? this.camera.project(xPos, 0, z3d, centerX, centerY) : { x: centerX + xPos * 0.5, y: centerY, scale: 1 };
                 if (!projected || projected.scale < 0.1) continue;
                 
                 const barWidth = (this.width / barCount) * projected.scale * 1.1;
@@ -2070,13 +2099,14 @@ export class MeshVisualizers {
      * Apple Music Style: Orbit Lines - 3D orbiting line trails
      */
     renderOrbitLines(audioData, metadata) {
+        if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         const orbits = 8;
         const pointsPerOrbit = 100;
         
-        const intensity = this.camera.getIntensityMultiplier();
+        const intensity = this.camera ? this.camera.getIntensityMultiplier() : 1;
         const maxRadius = Math.min(this.width, this.height) * 0.55;
         
         this.ctx.shadowBlur = 0;
@@ -2104,7 +2134,7 @@ export class MeshVisualizers {
                 const y3d = this.fastSin(angle) * r * this.fastCos(orbitTilt);
                 const z3d = this.fastSin(angle) * r * this.fastSin(orbitTilt) + orbit * 60 - 200;
                 
-                const projected = this.camera.project(x3d, y3d, z3d, centerX, centerY);
+                const projected = this.camera ? this.camera.project(x3d, y3d, z3d, centerX, centerY) : { x: centerX + x3d * 0.5, y: centerY + y3d * 0.5, scale: 1 };
                 if (!projected) continue;
                 
                 points.push({ ...projected, energy, t });
@@ -2154,12 +2184,13 @@ export class MeshVisualizers {
      * Apple Music Style: Starburst - Lines exploding outward with 3D depth
      */
     renderStarburst(audioData, metadata) {
+        if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
         const rayCount = 100;
         
-        const intensity = this.camera.getIntensityMultiplier();
+        const intensity = this.camera ? this.camera.getIntensityMultiplier() : 1;
         const maxLength = Math.max(this.width, this.height) * 0.75;
         
         for (let i = 0; i < rayCount; i++) {
@@ -2183,7 +2214,7 @@ export class MeshVisualizers {
                 const x3d = this.fastCos(spiralAngle) * segDist;
                 const y3d = this.fastSin(spiralAngle) * segDist;
                 
-                const projected = this.camera.project(x3d, y3d, z3d, centerX, centerY);
+                const projected = this.camera ? this.camera.project(x3d, y3d, z3d, centerX, centerY) : { x: centerX + x3d * 0.5, y: centerY + y3d * 0.5, scale: 1 };
                 if (!projected) continue;
                 
                 const hue = (i * 3.6 + s * 10 + this.time * 100) % 360;
@@ -2225,23 +2256,24 @@ export class MeshVisualizers {
      * Apple Music Style: Horizon Grid - 3D perspective grid with camera integration
      */
     renderHorizonGrid(audioData, metadata) {
+        if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const intensity = this.camera.getIntensityMultiplier();
+        const intensity = this.camera ? this.camera.getIntensityMultiplier() : 1;
         
-        const horizonY = this.height * 0.4 + this.camera.y * 0.3;
+        const horizonY = this.height * 0.4 + (this.camera ? this.camera.y * 0.3 : 0);
         const gridLines = 35;
         const verticalLines = 50;
         
-        const cameraOffset = this.camera.x * 0.5;
-        const speed = this.time * 2.5 + this.camera.z * 0.01;
+        const cameraOffset = this.camera ? this.camera.x * 0.5 : 0;
+        const speed = this.time * 2.5 + (this.camera ? this.camera.z * 0.01 : 0);
         
         for (let i = 0; i < gridLines; i++) {
             const baseZ = ((i / gridLines) * 1000 + (speed * 60) % 1000) % 1000;
             const z3d = baseZ - 200;
             
-            const projected = this.camera.project(0, 100, z3d, centerX, centerY);
+            const projected = this.camera ? this.camera.project(0, 100, z3d, centerX, centerY) : { x: centerX, y: centerY, scale: 0.5 };
             if (!projected || projected.scale <= 0.03) continue;
             
             const scale = projected.scale;
@@ -2304,8 +2336,8 @@ export class MeshVisualizers {
             this.ctx.stroke();
         }
         
-        const sunX = centerX + this.camera.shakeX * 0.5 + cameraOffset * 0.3;
-        const sunY = horizonY + this.camera.shakeY * 0.3;
+        const sunX = centerX + (this.camera ? this.camera.shakeX * 0.5 : 0) + cameraOffset * 0.3;
+        const sunY = horizonY + (this.camera ? this.camera.shakeY * 0.3 : 0);
         const sunSize = (80 + metadata.amplitude * 120 + this.fastSin(this.time * 3) * 25) * intensity;
         
         const sunGradient = this.ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunSize);

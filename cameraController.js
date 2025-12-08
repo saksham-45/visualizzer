@@ -35,6 +35,10 @@ export class CameraController {
     update(metadata, deltaTime = 0.016) {
         this.time += deltaTime;
         
+        if (!metadata) {
+            metadata = { amplitude: 0, energyBands: {}, rhythm: {} };
+        }
+        
         const energyBands = metadata.energyBands || {};
         const bass = energyBands.bassEnergy || energyBands.bass || 0;
         const mid = energyBands.midEnergy || energyBands.mid || 0;
