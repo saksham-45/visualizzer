@@ -36,7 +36,7 @@ class VisualizerApp {
         this.visualizerSelect = document.getElementById('visualizerSelect');
         this.autoModeCheckbox = document.getElementById('autoMode');
         this.canvas = document.getElementById('visualizerCanvas');
-        this.container = document.querySelector('.container');
+        this.uiOverlay = document.getElementById('uiOverlay');
         this.header = document.querySelector('.header');
         this.infoPanel = document.querySelector('.info-panel');
         
@@ -47,44 +47,42 @@ class VisualizerApp {
     }
 
     setupAutoHideUI() {
-        // Disabled auto-hide - UI stays visible
-        // document.addEventListener('mousemove', () => this.onUserActivity());
-        // document.addEventListener('mousedown', () => this.onUserActivity());
-        // document.addEventListener('keydown', () => this.onUserActivity());
-        // document.addEventListener('touchstart', () => this.onUserActivity());
+        document.addEventListener('mousemove', () => this.onUserActivity());
+        document.addEventListener('mousedown', () => this.onUserActivity());
+        document.addEventListener('keydown', () => this.onUserActivity());
+        document.addEventListener('touchstart', () => this.onUserActivity());
     }
 
     onUserActivity() {
-        // Disabled
-        // if (this.isRunning) {
-        //     this.showUI();
-        //     this.startUIHideTimer();
-        // }
+        this.showUI();
+        this.startUIHideTimer();
     }
 
     showUI() {
         if (!this.uiVisible) {
             this.uiVisible = true;
-            document.body.classList.remove('hide-ui');
+            if (this.uiOverlay) {
+                this.uiOverlay.classList.remove('hidden');
+            }
+            document.body.classList.remove('hide-cursor');
         }
     }
 
     hideUI() {
-        // Disabled - UI always visible
-        // if (this.isRunning) {
-        //     this.uiVisible = false;
-        //     document.body.classList.add('hide-ui');
-        // }
+        if (this.isRunning) {
+            this.uiVisible = false;
+            if (this.uiOverlay) {
+                this.uiOverlay.classList.add('hidden');
+            }
+            document.body.classList.add('hide-cursor');
+        }
     }
 
     startUIHideTimer() {
-        // Disabled
-        // if (this.uiHideTimeout) {
-        //     clearTimeout(this.uiHideTimeout);
-        // }
-        // if (this.isRunning) {
-        //     this.uiHideTimeout = setTimeout(() => this.hideUI(), this.UI_HIDE_DELAY);
-        // }
+        if (this.uiHideTimeout) {
+            clearTimeout(this.uiHideTimeout);
+        }
+        this.uiHideTimeout = setTimeout(() => this.hideUI(), this.UI_HIDE_DELAY);
     }
 
     attachEventListeners() {
@@ -158,14 +156,13 @@ class VisualizerApp {
     toggleFullscreen() {
         if (!document.fullscreenElement) {
             // Enter fullscreen
-            if (this.container.requestFullscreen) {
-                this.container.requestFullscreen();
-            } else if (this.container.webkitRequestFullscreen) {
-                this.container.webkitRequestFullscreen();
-            } else if (this.container.msRequestFullscreen) {
-                this.container.msRequestFullscreen();
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
+            } else if (document.documentElement.webkitRequestFullscreen) {
+                document.documentElement.webkitRequestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) {
+                document.documentElement.msRequestFullscreen();
             }
-            document.body.style.overflow = 'hidden';
             
             // Resize canvas for fullscreen
             setTimeout(() => {
@@ -182,7 +179,6 @@ class VisualizerApp {
             } else if (document.msExitFullscreen) {
                 document.msExitFullscreen();
             }
-            document.body.style.overflow = '';
             
             // Resize canvas after exiting
             setTimeout(() => {
@@ -270,8 +266,7 @@ class VisualizerApp {
         this.amplitudeSpan.textContent = '0%';
         this.loudnessSpan.textContent = '0 dB';
         
-        document.body.classList.remove('hide-ui');
-        this.uiVisible = true;
+        this.showUI();
         if (this.uiHideTimeout) {
             clearTimeout(this.uiHideTimeout);
         }
