@@ -1,104 +1,139 @@
-# Audio Visualizer - Replit Project
+# Advanced Audio Visualizer
 
 ## Overview
-An advanced, real-time audio visualizer web application that creates beautiful visual effects based on audio input from your microphone or system audio. Features intelligent auto-selection of visualizations based on audio characteristics and smooth transitions between different visual styles.
 
-**Current State**: Fully functional and ready to use. The application runs on port 5000 and is accessible through the Replit webview.
-
-## Project Architecture
-
-### Technology Stack
-- **Frontend**: Vanilla JavaScript (ES6 modules), HTML5 Canvas, Web Audio API
-- **Server**: Node.js (simple HTTP server for static files)
-- **No Build Process**: Direct ES6 module loading in the browser
-
-### File Structure
-```
-.
-├── index.html              # Main HTML page
-├── styles.css              # Application styles
-├── server.js              # Node.js static file server (PORT 5000)
-├── server.py              # Alternative Python server (not used in Replit)
-├── main.js                # Application orchestration
-├── audioCapture.js        # Web Audio API capture logic
-├── audioAnalyzer.js       # Real-time audio analysis
-├── meshVisualizers.js     # Visualizer implementations
-├── visualizerSelector.js  # Intelligent visualizer selection
-├── visualizers.js         # Legacy visualizers (if present)
-├── package.json           # Project metadata
-└── README.md              # Original project documentation
-```
-
-### Key Features
-1. **Classic Visualizer Types**: Tornado Spiral, Cyclone Vortex, Double Spiral, Kaleidoscope, Mandala, Fractal, Tunnel Portal, Morphing, Trippy, and more
-2. **Intelligent Auto-Selection**: Automatically chooses the best visualizer based on audio characteristics (frequency distribution, amplitude, spectral centroid, etc.)
-3. **Smooth Transitions**: Organic morphing between different visualizers
-4. **Audio Input Options**: Microphone or System Audio (requires browser permission)
-5. **Immersive Fullscreen Mode**: Pitch black background with auto-hiding controls
-
-## Recent Changes
-
-### December 8, 2025 - Premium Visualizer Removal & Immersive UI
-- Removed all 9 premium visualizers (liquid metal, plasma field, neon grid, etc.) - now classic visualizers only
-- Implemented immersive fullscreen experience with pitch black (#000000) background
-- Auto-hiding controls: UI fades out after 3 seconds of mouse inactivity
-- Controls reappear on any mouse/keyboard/touch activity
-- Transparent control overlays for minimal visual interference
-- Fixed critical JavaScript error from deleted premiumVisualizers.js import
-
-### December 1, 2025 - UI Auto-Hide & Visualizer Fixes
-- Implemented YouTube-style auto-hide UI: header and controls fade out after 3 seconds of inactivity during playback
-- Auto-hide only activates when visualizer is running (not before clicking Start)
-- UI reappears on any mouse/keyboard/touch activity
-- Fixed 7 broken visualizers that were all rendering identical mesh planes:
-  - **Double Spiral (spiral1)**: Two distinct intertwined spiral arms with dots
-  - **Chaotic Spiral (spiral2)**: Explosive particle spiral with connecting lines
-  - **Nested Spirals (spiral3)**: Multiple concentric rotating rings
-  - **Spiral Trails (spiral4)**: Particles with fading trails and glowing heads
-  - **Tracing Waves**: Horizontal flowing gradient waveforms
-  - **Crossing Planes**: Intersecting grid lines with nodes at intersections
-  - **Combined Effects**: Mix of rings, waves, and particles
-
-### December 1, 2025 - Replit Import Setup
-- Modified `server.js` to run on port 5000 with host binding to `0.0.0.0` for Replit compatibility
-- Added cache control headers to prevent browser caching issues in the Replit iframe environment
-- Configured workflow to automatically start the Node.js server
-- Removed browser auto-launch functionality (not needed in Replit)
-- Created deployment configuration for static hosting
+An advanced, real-time audio visualizer application that creates dynamic visual effects synchronized with audio input. The system analyzes audio characteristics (frequency distribution, amplitude, rhythm, spectral properties) and intelligently cycles through various mesh-based visualization styles. Built with vanilla JavaScript using the Web Audio API and HTML5 Canvas, the application supports both microphone and system audio input sources.
 
 ## User Preferences
 
-None documented yet.
+Preferred communication style: Simple, everyday language.
 
-## Development Notes
+## System Architecture
 
-### Running Locally
-The application is automatically started via the "Audio Visualizer" workflow which runs:
-```bash
-node server.js
-```
+### Frontend Architecture
 
-### Important Constraints
-- **Browser Permissions**: Requires microphone access for visualization. Users must grant permission when prompted.
-- **HTTPS/Secure Context**: Web Audio API and getUserMedia require a secure context (HTTPS or localhost). Replit provides this automatically.
-- **ES6 Modules**: Uses native browser ES6 module loading, requires a web server (cannot open HTML file directly).
+**Single-Page Application (SPA)**
+- Pure vanilla JavaScript with ES6 modules
+- No framework dependencies - uses native Web APIs exclusively
+- Module-based architecture for clean separation of concerns
+- HTML5 Canvas for all visual rendering with 2D context
 
-### Audio Analysis
-The application performs sophisticated real-time analysis:
-- FFT Size: 2048 samples for high resolution
-- Smoothing: 0.8 (80%) for fluid visualization
-- Analysis includes: amplitude, loudness, frequency distribution, spectral centroid, rhythm detection
+**Core Modules:**
+1. **main.js** - Application controller, orchestrates all modules and manages UI state
+2. **audioCapture.js** - Web Audio API integration for audio input
+3. **audioAnalyzer.js** - Real-time audio characteristic extraction
+4. **meshVisualizers.js** - Primary visualization engine with mesh-based effects
+5. **visualizerSelector.js** - Intelligent visualizer cycling logic
+6. **visualizers.js** - Legacy visualization wrapper (delegates to meshVisualizers)
 
-### Deployment
-Configured for Replit's static deployment since there's no backend logic - just static file serving.
+**UI Components:**
+- Auto-hiding overlay system (fades after 3 seconds of inactivity)
+- Real-time audio metadata display
+- Manual visualizer selection override
+- Audio source selection (microphone vs system audio)
+- Fullscreen mode support
 
-## Known Issues
+**Canvas Rendering:**
+- High-DPI support with devicePixelRatio scaling
+- 60 FPS animation loop using requestAnimationFrame
+- Smooth transitions between visualizers with easing functions
+- Mesh-based rendering with configurable resolution (60x60 grid default)
 
-None currently documented.
+### Audio Processing Pipeline
 
-## Future Enhancement Ideas
-- Audio file upload support (currently only live input)
-- Custom color themes
-- Recording/export functionality
-- 3D visualizations with WebGL
-- VR/AR support
+**Web Audio API Configuration:**
+- Sample rate: 44,100 Hz
+- FFT size: 2048 samples (high resolution frequency analysis)
+- Smoothing time constant: 0.8 (balanced between responsiveness and stability)
+- Latency hint: 'interactive' (optimized for real-time visualization)
+
+**Audio Analysis Metrics:**
+- Amplitude (0-1 normalized volume level)
+- Loudness (decibel measurement)
+- Dominant frequency detection
+- Frequency distribution (bass, mid, treble balance)
+- Energy bands across 7 frequency ranges (sub-bass to brilliance)
+- Spectral centroid (audio brightness)
+- Spectral spread (frequency distribution width)
+- Rhythm analysis with beat detection
+
+**Visualizer Selection Strategy:**
+- Cycles through 14 distinct visualizer types equally
+- Target duration: 6.5 seconds per visualizer
+- Beat-responsive early switching (minimum 2 seconds between switches)
+- Maintains selection history for variety
+- Falls back to cycling during audio silence
+
+**Available Visualizers:**
+- tornado, cyclone, spiral1-4, tracing, crossing, combined
+- kaleidoscope, mandala, fractal, tunnel, morphing
+
+### Data Flow
+
+1. Audio input captured via getUserMedia API
+2. Audio stream connected to AnalyserNode
+3. Real-time FFT analysis produces frequency/time domain data
+4. AudioAnalyzer extracts metadata (amplitude, frequency characteristics, rhythm)
+5. VisualizerSelector determines appropriate visualization
+6. MeshVisualizers renders animated mesh effects synchronized to audio
+7. UI updates display current visualizer and audio metrics
+
+### Local Development Server
+
+**Dual Server Support:**
+- Python HTTP server (server.py) - primary, auto-detects free ports
+- Node.js HTTP server (server.js) - alternative option
+- CORS headers configured for ES6 module loading
+- Auto-opens browser on start
+- Serves static files with appropriate MIME types
+
+**Design Rationale:**
+ES6 modules require proper CORS configuration, necessitating a local server rather than file:// protocol access. Python server chosen as primary due to universal availability on macOS/Linux and minimal dependencies.
+
+## External Dependencies
+
+### Browser APIs
+
+**Web Audio API** (Required)
+- Purpose: Audio capture, analysis, and processing
+- Components used: AudioContext, AnalyserNode, GainNode, getUserMedia
+- Browser support: Modern browsers (Chrome, Firefox, Safari, Edge)
+
+**Canvas 2D API** (Required)
+- Purpose: All visual rendering
+- Rationale: Chosen over WebGL for simpler implementation while maintaining performance for 2D effects
+
+**Screen Capture API** (Optional)
+- Purpose: System audio capture functionality
+- Note: Experimental feature, requires user to share tab/window audio
+- Fallback: Microphone input always available
+
+### Runtime Dependencies
+
+**None** - Zero npm packages or external libraries required
+
+The application runs entirely on native browser APIs with no build process, bundlers, or external dependencies. This architectural decision prioritizes:
+- Simplicity and ease of deployment
+- Reduced attack surface
+- Minimal maintenance burden
+- Direct understanding of underlying platform APIs
+
+### Development Tools
+
+**Package.json** - Metadata only, no actual dependencies
+- Defines npm scripts for convenience
+- Scripts simply invoke server.py or server.js directly
+
+### Browser Compatibility Requirements
+
+- ES6 module support (import/export)
+- Web Audio API support
+- Canvas 2D rendering context
+- High-resolution display support (devicePixelRatio)
+- getUserMedia API for microphone access
+
+**Minimum browser versions:**
+- Chrome 61+
+- Firefox 60+
+- Safari 11+
+- Edge 79+

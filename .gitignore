@@ -20,3 +20,12 @@ node_modules/
 dist/
 build/
 
+# Replit-specific files (excluded from repo)
+.replit
+replit.md
+replit.nix
+.cache/
+.local/
+.upm/
+.config/
+
