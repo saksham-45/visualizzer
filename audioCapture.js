@@ -27,14 +27,14 @@ export class AudioCapture {
             this.analyser = this.audioContext.createAnalyser();
             this.analyser.fftSize = 2048; // Higher resolution for smoother visualization
             this.analyser.smoothingTimeConstant = 0.8; // Smooth transitions
-            
+
             // Create gain node for volume control
             this.gainNode = this.audioContext.createGain();
             this.gainNode.gain.value = 1.0;
-            
+
             // Connect gain to analyser
             this.gainNode.connect(this.analyser);
-            
+
             return true;
         } catch (error) {
             console.error('Error initializing audio context:', error);
@@ -65,7 +65,7 @@ export class AudioCapture {
             // Create source from microphone stream
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             this.source.connect(this.gainNode);
-            
+
             this.isCapturing = true;
             return true;
         } catch (error) {
@@ -85,10 +85,12 @@ export class AudioCapture {
                 await this.initialize();
             }
 
-            // Request screen capture with audio (system audio)
-            // This is the closest we can get to system audio capture in browsers
+            console.log('Requesting system audio via getDisplayMedia...');
+            // Request screen capture with audio
+            // IMPORTANT: 'video: true' is REQUIRED for getDisplayMedia to work in most browsers,
+            // even if we only want audio. The user must select "Share Audio" in the browser prompt.
             this.stream = await navigator.mediaDevices.getDisplayMedia({
-                video: false,
+                video: true,
                 audio: {
                     echoCancellation: false,
                     noiseSuppression: false,
@@ -97,21 +99,33 @@ export class AudioCapture {
                 }
             });
 
+            // Check if we actually got an audio track
+            const audioTracks = this.stream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                // User didn't check "Share Audio"
+                this.stop();
+                throw new Error('No audio track found. Please ensure you checked "Share tab audio" or "Share system audio" in the popup.');
+            }
+
             // Create source from system audio stream
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             this.source.connect(this.gainNode);
-            
+
             this.isCapturing = true;
-            
-            // Handle stream end (user stops sharing)
-            this.stream.getAudioTracks()[0].addEventListener('ended', () => {
+
+            // Handle stream end (user stops sharing via browser UI)
+            this.stream.getVideoTracks()[0].onended = () => {
+                console.log('Screen sharing stopped by user');
                 this.stop();
-            });
-            
+            };
+
             return true;
         } catch (error) {
             console.error('Error accessing system audio:', error);
-            throw new Error('System audio access denied or unavailable. Please select a tab/window to capture.');
+            if (error.name === 'NotAllowedError') {
+                throw new Error('Permission denied. You cancelled the screen sharing prompt.');
+            }
+            throw error;
         }
     }
 
@@ -138,12 +152,12 @@ export class AudioCapture {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = null;
         }
-        
+
         if (this.source) {
             this.source.disconnect();
             this.source = null;
         }
-        
+
         this.isCapturing = false;
     }
 
@@ -162,7 +176,7 @@ export class AudioCapture {
 
         // Get frequency domain data
         this.analyser.getByteFrequencyData(frequencyData);
-        
+
         // Get time domain data (waveform)
         this.analyser.getByteTimeDomainData(timeData);
 
