@@ -41,6 +41,10 @@ export class ThreeJSVisualizer {
         try {
             const container = this.canvas.parentElement;
 
+            // PREVENT DUPLICATES: Remove any existing ThreeJS canvases in this container
+            const existingCanvases = container.querySelectorAll('.three-canvas');
+            existingCanvases.forEach(c => c.remove());
+
             // Create Three.js canvas
             this.threeCanvas = document.createElement('canvas');
             this.threeCanvas.className = 'three-canvas';
@@ -196,50 +200,40 @@ export class ThreeJSVisualizer {
     }
 
     createDrops() {
-        // "Grand Effect" Particle System (Replacing simple drops)
-        const particleCount = 8000;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
+        for (let i = 0; i < 8; i++) {
+            const size = 0.1 + Math.random() * 0.15;
+            const dropGeo = new THREE.IcosahedronGeometry(size, 16);
 
-        const color = new THREE.Color();
+            // Store original positions for each drop
+            const posAttr = dropGeo.attributes.position;
+            const originalPos = new Float32Array(posAttr.array.length);
+            originalPos.set(posAttr.array);
 
-        for (let i = 0; i < particleCount; i++) {
-            // Spiral Galaxy Distribution
-            const i3 = i * 3;
-            const radius = 2.5 + Math.random() * 8.0;
-            const theta = Math.random() * Math.PI * 2;
-            const phi = (Math.random() - 0.5) * Math.PI * 0.5; // Flattened sphere
+            const dropMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                metalness: 1.0,
+                roughness: 0.0,
+                envMapIntensity: 2.5,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.0,
+                iridescence: 0.6,
+                iridescenceIOR: 1.8
+            });
 
-            positions[i3] = radius * Math.cos(theta) * Math.cos(phi);
-            positions[i3 + 1] = (radius * Math.sin(phi)) * 0.3; // Flattened Y
-            positions[i3 + 2] = radius * Math.sin(theta) * Math.cos(phi);
+            const drop = new THREE.Mesh(dropGeo, dropMat);
+            this.scene.add(drop);
 
-            // Base colors
-            const hue = Math.random();
-            color.setHSL(hue, 0.8, 0.6);
-            colors[i3] = color.r;
-            colors[i3 + 1] = color.g;
-            colors[i3 + 2] = color.b;
+            this.drops.push({
+                mesh: drop,
+                originalPositions: originalPos,
+                angle: (i / 8) * Math.PI * 2,
+                radius: 2.2 + Math.random() * 0.8,
+                speed: 0.3 + Math.random() * 0.4,
+                yOffset: (Math.random() - 0.5) * 2,
+                verticalSpeed: 0.5 + Math.random() * 0.5,
+                size
+            });
         }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const material = new THREE.PointsMaterial({
-            size: 0.12,
-            vertexColors: true,
-            transparent: true,
-            opacity: 0.8,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        this.particleSystem = new THREE.Points(geometry, material);
-        this.scene.add(this.particleSystem);
-
-        // Clear legacy drops array
-        this.drops = [];
     }
 
     createLights() {
@@ -336,44 +330,43 @@ export class ThreeJSVisualizer {
             const isMercury = ['mercuryOrbs', 'liquidMetal', 'metallicNebula'].includes(mode);
             this.mercuryMesh.visible = isMercury;
             if (this.innerGlow) this.innerGlow.visible = isMercury;
-            if (this.particleSystem) this.particleSystem.visible = isMercury;
+            this.drops.forEach(d => d.mesh.visible = isMercury);
             this.lights.forEach(l => l.light.visible = isMercury);
 
             if (isMercury) {
                 const material = this.mercuryMesh.material;
-                // Reset common props
+                material.color.setHex(0xffffff);
                 material.metalness = 1.0;
                 material.roughness = 0.0;
+                material.emissive.setHex(0x000000);
+                this.scene.background = new THREE.Color(0x000000);
 
-                // DISTINCT MODE STYLING
                 switch (mode) {
                     case 'liquidMetal':
-                        // WARM GOLD/COPPER
-                        material.color.setHex(0xffaa00);
+                        material.color.setHex(0xff9900);
+                        material.roughness = 0.1;
+                        material.metalness = 1.0;
+                        material.iridescence = 0.4;
                         material.emissive.setHex(0x331100);
-                        material.roughness = 0.15;
-                        material.iridescence = 0.6;
-                        this.scene.background = new THREE.Color(0x110500);
-                        if (this.innerGlow) this.innerGlow.material.color.setHex(0xff4400);
+                        this.scene.background = new THREE.Color(0x080400);
+                        if (this.innerGlow) this.innerGlow.material.color.setHex(0xffaa00);
                         break;
-
                     case 'metallicNebula':
-                        // DEEP SPACE PURPLE/BLUE
-                        material.color.setHex(0x2200ff);
-                        material.emissive.setHex(0x110044);
-                        material.roughness = 0.2;
+                        material.color.setHex(0x4400ff);
+                        material.metalness = 0.9;
+                        material.roughness = 0.15;
+                        material.emissive.setHex(0x110033);
                         material.iridescence = 1.0;
-                        this.scene.background = new THREE.Color(0x020011);
+                        this.scene.background = new THREE.Color(0x020010);
                         if (this.innerGlow) this.innerGlow.material.color.setHex(0xaa00ff);
                         break;
-
                     case 'mercuryOrbs':
                     default:
-                        // PURE CHROME/SILVER
                         material.color.setHex(0xffffff);
-                        material.emissive.setHex(0x000000);
+                        material.metalness = 1.0;
                         material.roughness = 0.0;
-                        material.iridescence = 0.4;
+                        material.iridescence = 0.8;
+                        material.emissive.setHex(0x000000);
                         this.scene.background = new THREE.Color(0x000000);
                         if (this.innerGlow) this.innerGlow.material.color.setHex(0x4466ff);
                         break;
@@ -382,8 +375,8 @@ export class ThreeJSVisualizer {
         }
 
         if (this.tunnelGroup) {
-            this.tunnelGroup.visible = (mode === 'tunnel');
-        } else if (mode === 'tunnel') {
+            this.tunnelGroup.visible = (mode === 'tunnel' || mode === 'depthlines');
+        } else if (mode === 'tunnel' || mode === 'depthlines') {
             this.createTunnel();
         }
     }
@@ -421,9 +414,11 @@ export class ThreeJSVisualizer {
             this.updateTunnel(time, bassVal, midVal, highVal, ampVal);
         } else {
             this.updateMercury(time, bassVal, midVal, highVal, ampVal);
-            const cameraRadius = 6.0 + bassVal * 0.5;
-            this.camera.position.x = Math.sin(time * 0.15) * 0.5;
-            this.camera.position.y = Math.cos(time * 0.1) * 0.3;
+
+            // DAMPENED: Smoother camera movement for Mercury Orb
+            const cameraRadius = 6.5 + bassVal * 0.3; // Stays slightly further back and moves less
+            this.camera.position.x = Math.sin(time * 0.1) * 0.4;
+            this.camera.position.y = Math.cos(time * 0.08) * 0.2;
             this.camera.position.z = cameraRadius;
             this.camera.lookAt(0, 0, 0);
         }
@@ -494,12 +489,18 @@ export class ThreeJSVisualizer {
         material.sheenColor.setHSL((time * 0.1 + highVal) % 1, 1, 0.5);
 
         if (this.mode === 'metallicNebula') {
-            const hue = (time * 0.05) % 1;
-            material.color.setHSL(hue, 0.5, 0.5);
-            material.emissive.setHSL((hue + 0.5) % 1, 0.8, 0.2);
+            const hue = (time * 0.03 + bassVal * 0.1) % 1;
+            material.color.setHSL(hue, 0.7, 0.4);
+            material.emissive.setHSL((hue + 0.5) % 1, 0.9, 0.15);
         } else if (this.mode === 'liquidMetal') {
-            const heat = Math.min(ampVal, 1.0);
-            material.color.setHSL(0.1, heat * 0.5, 0.5 + heat * 0.5);
+            // Stronger gold/copper reactive shift
+            const goldHue = 0.08 + ampVal * 0.05;
+            material.color.setHSL(goldHue, 0.9, 0.4 + ampVal * 0.2);
+            material.emissive.setHSL(goldHue, 1.0, 0.1 + bassVal * 0.2);
+        } else {
+            // Classic silver - keep it white but reactive to lights
+            material.color.setHex(0xffffff);
+            material.emissive.setHex(0x000000);
         }
 
         this.innerGlow.material.opacity = 0.1 + this.beatDecay * 0.2 + bassVal * 0.1;
@@ -510,34 +511,60 @@ export class ThreeJSVisualizer {
     }
 
     updateLightsAndDrops(time, bassVal, midVal, highVal, ampVal) {
-        // Dynamic Lights Update
         this.lights.forEach((item, i) => {
-            const angle = item.baseAngle + time * item.speed * (1 + bassVal);
-            const r = item.radiusBase + bassVal * 3;
-            item.light.position.x = Math.cos(angle) * r;
-            item.light.position.z = Math.sin(angle) * r;
+            const angle = item.baseAngle + time * item.speed * (1 + bassVal * 0.5);
+            const radius = item.radiusBase + bassVal * 2;
 
-            // Color shift based on mode
+            item.light.position.x = Math.cos(angle) * radius;
+            item.light.position.z = Math.sin(angle) * radius;
+            item.light.position.y = Math.sin(time * item.yFrequency + i) * 3;
+
+            // Pulse intensity on beat
+            item.light.intensity = item.baseIntensity * (1 + ampVal * 1.5 + this.beatDecay * 2);
+
+            // Shift hue over time
+            let hue = ((i / this.lights.length) + time * 0.05 + highVal * 0.3) % 1;
             if (this.mode === 'liquidMetal') {
-                item.light.color.setHSL(0.05 + i * 0.05, 1.0, 0.5); // Orange/Yellow
-            } else if (this.mode === 'metallicNebula') {
-                item.light.color.setHSL(0.6 + i * 0.1, 1.0, 0.6); // Blue/Purple
-            } else {
-                const hue = ((i / this.lights.length) + time * 0.1) % 1;
-                item.light.color.setHSL(hue, 0.8, 0.5);
+                hue = (0.6 + i * 0.05) % 1;
             }
+            item.light.color.setHSL(hue, 1.0, 0.5);
         });
 
-        // Update Grand Particle System
-        if (this.particleSystem) {
-            this.particleSystem.rotation.y = time * 0.05 + bassVal * 0.1;
-            const positions = this.particleSystem.geometry.attributes.position.array;
+        this.drops.forEach((drop, i) => {
+            // Orbit
+            drop.angle += drop.speed * 0.015 * (1 + bassVal * 2);
+            const r = drop.radius + bassVal * 0.8 + Math.sin(time * 2 + i) * 0.3;
 
-            // Gentle pulsing or turbulence could go here, but rotation is usually enough for grand effect
-            // We can scale the whole system with bass
-            const scale = 1.0 + bassVal * 0.2 + ampVal * 0.1;
-            this.particleSystem.scale.setScalar(scale);
-        }
+            drop.mesh.position.x = Math.cos(drop.angle) * r;
+            drop.mesh.position.z = Math.sin(drop.angle) * r;
+            drop.mesh.position.y = Math.sin(time * drop.verticalSpeed + i * 1.5) * 0.8 + drop.yOffset;
+
+            const dropScale = 1 + this.beatDecay * 0.6 + bassVal * 0.3;
+            drop.mesh.scale.setScalar(dropScale);
+
+            const dropPosAttr = drop.mesh.geometry.attributes.position;
+            for (let j = 0; j < dropPosAttr.count; j++) {
+                const jdx = j * 3;
+                const ox = drop.originalPositions[jdx];
+                const oy = drop.originalPositions[jdx + 1];
+                const oz = drop.originalPositions[jdx + 2];
+
+                const noise = this.noise3D(ox * 4 + time + i, oy * 4, oz * 4 + time, 2) * 0.15;
+                const len = Math.sqrt(ox * ox + oy * oy + oz * oz);
+                const nx = ox / len;
+                const ny = oy / len;
+                const nz = oz / len;
+
+                dropPosAttr.array[jdx] = ox + nx * noise * (1 + bassVal);
+                dropPosAttr.array[jdx + 1] = oy + ny * noise * (1 + bassVal);
+                dropPosAttr.array[jdx + 2] = oz + nz * noise * (1 + bassVal);
+            }
+            dropPosAttr.needsUpdate = true;
+            drop.mesh.geometry.computeVertexNormals();
+
+            drop.mesh.rotation.x += 0.01 + bassVal * 0.05;
+            drop.mesh.rotation.y += 0.02 + midVal * 0.03;
+        });
     }
 
     createTunnel() {
