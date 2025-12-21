@@ -159,27 +159,10 @@ export class Visualizers {
             const spreadRec = this.musicIntelligence.getSpreadRecommendation();
             this.cameraState.targetSpread = spreadRec.spread;
 
-            // Intelligent visualizer selection
+            // Intelligent visualizer selection - DELEGATED TO VisualizerSelector via main.js
+            // We expose intelligence data but don't switch autonomously to prevent conflicts.
             if (this.intelligentMode && this.intelligenceState?.recommendedVisualizer) {
-                const now = Date.now();
-                const timeSinceLastChange = now - this.lastVisualizerChange;
-
-                // Only switch if enough time has passed and confidence is high
-                if (timeSinceLastChange > this.minVisualizerDuration &&
-                    this.intelligenceState.sectionConfidence > 0.5) {
-                    const recommended = this.intelligenceState.recommendedVisualizer;
-                    if (this.currentVisualizer !== recommended) {
-                        // Prefer fluid visualizers for drops
-                        if (this.intelligenceState.currentSection === 'drop' &&
-                            Math.random() > 0.5) {
-                            const fluidOptions = ['mercuryOrbs', 'liquidMetal', 'plasmaFluid'];
-                            this.setVisualizer(fluidOptions[Math.floor(Math.random() * fluidOptions.length)]);
-                        } else {
-                            this.setVisualizer(recommended);
-                        }
-                        this.lastVisualizerChange = now;
-                    }
-                }
+                // Logic moved to VisualizerSelector
             }
         }
 

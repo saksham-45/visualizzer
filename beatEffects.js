@@ -90,7 +90,7 @@ export class BeatEffects {
                 this.triggerDistortion(centerX, centerY, intensity);
                 break;
             case 'beatAnticipation':
-                this.triggerBeatAnticipation(options.timeUntilBeat || 100);
+                this.triggerBeatAnticipation(options.timeUntilBeat || 100, color);
                 break;
         }
     }
@@ -287,7 +287,7 @@ export class BeatEffects {
     /**
      * Beat anticipation - contracting ring before beat
      */
-    triggerBeatAnticipation(timeUntilBeat) {
+    triggerBeatAnticipation(timeUntilBeat, color) {
         const centerX = this.width / 2;
         const centerY = this.height / 2;
 
@@ -299,7 +299,7 @@ export class BeatEffects {
             maxRadius: 0, // Contracts inward
             speed: -300 / (timeUntilBeat / 16.67), // Frames until beat
             thickness: 2,
-            color: { h: 60, s: 100, l: 70 },
+            color: color || { h: 60, s: 100, l: 70 },
             alpha: 0.5,
             decay: 0,
             contracting: true

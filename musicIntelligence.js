@@ -415,8 +415,13 @@ export class MusicIntelligence {
             this.triggerEffect('beat', { intensity: metadata.amplitude });
         }
 
-        if (this.beatImminent && this.beatConfidence > 0.7) {
-            this.triggerEffect('beatAnticipation', { timeUntilBeat: this.nextBeatPrediction - now });
+        // Only trigger anticipation ring during buildups and rarely to avoid clutter
+        if (this.beatImminent && this.beatConfidence > 0.8 && this.isBuildup && Math.random() > 0.9) {
+            this.triggerEffect('beatAnticipation', {
+                timeUntilBeat: this.nextBeatPrediction - now,
+                // Pass a random color parameter to avoid the "yellow ring" monotony
+                color: null
+            });
         }
     }
 

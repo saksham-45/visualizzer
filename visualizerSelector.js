@@ -12,7 +12,7 @@ export class VisualizerSelector {
         this.stabilityWindow = 10;
         this.stabilityHistory = [];
         this.lastSwitchTime = Date.now();
-        this.targetTimePerVisualizer = 6500; // 6.5 seconds per visualizer
+        this.targetTimePerVisualizer = 8000; // Increased to 8s for stability
         this.switchCount = 0;
 
         // All available visualizers (classic + 3D + fluid visualizers)
@@ -23,56 +23,57 @@ export class VisualizerSelector {
             'fractal', 'tunnel', 'morphing',
             // 3D camera visualizers
             'depthlines', 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
-            // NEW: Fluid visualizers (WebGL2)
+            // Premium Fluid visualizers
             'mercuryOrbs', 'liquidMetal', 'metallicNebula'
         ];
-        this.currentIndex = 0;
-        this.cycleMode = true; // Always cycle through all
 
-        // Fluid visualizers for special occasions (drops, high energy)
-        this.fluidVisualizers = [
-            'mercuryOrbs', 'liquidMetal', 'metallicNebula'
-        ];
+        // Shuffle initially for unique session experience
+        this.shuffleVisualizers();
+
+        this.currentIndex = 0;
+    }
+
+    shuffleVisualizers() {
+        for (let i = this.allVisualizers.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [this.allVisualizers[i], this.allVisualizers[j]] = [this.allVisualizers[j], this.allVisualizers[i]];
+        }
     }
 
     /**
-     * Select visualizer - cycles through all equally
+     * Select visualizer - cycles through shuffled list
      */
     selectVisualizer(metadata) {
-        if (!metadata || metadata.amplitude < 0.01) {
-            // Keep current during silence, but still cycle
-            const timeSinceLastSwitch = Date.now() - this.lastSwitchTime;
-            if (timeSinceLastSwitch >= this.targetTimePerVisualizer) {
-                this.currentIndex = (this.currentIndex + 1) % this.allVisualizers.length;
-                this.lastSelection = this.allVisualizers[this.currentIndex];
-                this.lastSwitchTime = Date.now();
-            }
-            return this.lastSelection || this.allVisualizers[0];
+        // Initialization check
+        if (!this.lastSelection) {
+            this.lastSelection = this.allVisualizers[0];
+            this.lastSwitchTime = Date.now();
+            return this.allVisualizers[0];
         }
 
         const timeSinceLastSwitch = Date.now() - this.lastSwitchTime;
         const shouldSwitchByTime = timeSinceLastSwitch >= this.targetTimePerVisualizer;
 
-        // Check for beat detection - switch early on beats
-        const hasBeat = metadata.rhythm && metadata.rhythm.beat;
-        const canSwitchOnBeat = hasBeat && timeSinceLastSwitch > 2000; // At least 2 seconds before beat switch
+        // Check for beat detection - switch early on beats (but enforce min 3s)
+        const hasBeat = metadata?.rhythm?.beat;
+        const canSwitchOnBeat = hasBeat && timeSinceLastSwitch > 3000;
 
-        // Cycle through all visualizers EQUALLY - ignore scores, just cycle
         if (shouldSwitchByTime || canSwitchOnBeat) {
             // Move to next visualizer in cycle
-            this.currentIndex = (this.currentIndex + 1) % this.allVisualizers.length;
+            this.currentIndex = (this.currentIndex + 1);
+
+            // Reshuffle if we hit the end
+            if (this.currentIndex >= this.allVisualizers.length) {
+                this.shuffleVisualizers();
+                this.currentIndex = 0;
+            }
+
             const nextVisualizer = this.allVisualizers[this.currentIndex];
 
             this.lastSwitchTime = Date.now();
             this.switchCount++;
             this.lastSelection = nextVisualizer;
             return nextVisualizer;
-        }
-
-        // Keep current visualizer
-        if (!this.lastSelection) {
-            this.lastSelection = this.allVisualizers[this.currentIndex];
-            this.lastSwitchTime = Date.now();
         }
 
         return this.lastSelection;
@@ -103,315 +104,6 @@ export class VisualizerSelector {
 
         // High stability means low variance - good for transitions
         return avgStability > 0.6;
-    }
-
-    /**
-     * Score visualizers based on audio characteristics
-     */
-    scoreWave(metadata) {
-        // Good for balanced audio with moderate dynamics
-        let score = 0.5;
-
-        // Prefer for rhythmic content
-        if (metadata.rhythm && metadata.rhythm.variance > 0.1) {
-            score += 0.2;
-        }
-
-        // Prefer for moderate amplitude
-        if (metadata.amplitude > 0.2 && metadata.amplitude < 0.7) {
-            score += 0.2;
-        }
-
-        return score;
-    }
-
-    scoreCircle(metadata) {
-        // Good for bass-heavy or low-frequency content
-        let score = 0.4;
-
-        if (metadata.freqDistribution) {
-            // Prefer for bass-heavy music
-            if (metadata.freqDistribution.low > 0.4) {
-                score += 0.4;
-            }
-
-            // Prefer for balanced distribution
-            if (metadata.freqDistribution.distribution === 'balanced') {
-                score += 0.2;
-            }
-        }
-
-        // Prefer for higher amplitude
-        if (metadata.amplitude > 0.3) {
-            score += 0.2;
-        }
-
-        return score;
-    }
-
-    scoreBars(metadata) {
-        // Good for complex frequency content
-        let score = 0.5;
-
-        if (metadata.energyBands) {
-            // Prefer when multiple bands have energy
-            const activeBands = Object.values(metadata.energyBands).filter(e => e > 0.1).length;
-            if (activeBands >= 4) {
-                score += 0.3;
-            }
-        }
-
-        // Prefer for wide spectral spread
-        if (metadata.spectralSpread > 2000) {
-            score += 0.2;
-        }
-
-        // Prefer for moderate to high amplitude
-        if (metadata.amplitude > 0.25) {
-            score += 0.2;
-        }
-
-        return score;
-    }
-
-    scoreParticles(metadata) {
-        // Good for high-frequency, bright content
-        let score = 0.4;
-
-        // Prefer for high spectral centroid (brightness)
-        if (metadata.spectralCentroid > 3000) {
-            score += 0.4;
-        }
-
-        if (metadata.freqDistribution) {
-            // Prefer for treble-heavy content
-            if (metadata.freqDistribution.high > 0.4) {
-                score += 0.3;
-            }
-        }
-
-        // Prefer for dynamic content
-        if (metadata.rhythm && metadata.rhythm.variance > 0.15) {
-            score += 0.2;
-        }
-
-        return score;
-    }
-
-    scoreSpiral(metadata) {
-        // Good for melodic, flowing content
-        let score = 0.4;
-
-        // Prefer for moderate spectral spread
-        if (metadata.spectralSpread > 1000 && metadata.spectralSpread < 3000) {
-            score += 0.3;
-        }
-
-        // Prefer for stable, flowing audio
-        if (metadata.rhythm && metadata.rhythm.stability > 0.7) {
-            score += 0.3;
-        }
-
-        // Prefer for mid-range frequencies
-        if (metadata.freqDistribution && metadata.freqDistribution.mid > 0.35) {
-            score += 0.2;
-        }
-
-        return score;
-    }
-
-    scoreSpectrum(metadata) {
-        // Good for complex, full-spectrum content
-        let score = 0.5;
-
-        if (metadata.energyBands) {
-            // Prefer when all bands have significant energy
-            const totalEnergy = Object.values(metadata.energyBands).reduce((a, b) => a + b, 0);
-            if (totalEnergy > 2.0) {
-                score += 0.3;
-            }
-        }
-
-        // Prefer for wide frequency range
-        if (metadata.spectralSpread > 2500) {
-            score += 0.2;
-        }
-
-        // Prefer for high amplitude
-        if (metadata.amplitude > 0.4) {
-            score += 0.2;
-        }
-
-        // Prefer for balanced distribution
-        if (metadata.freqDistribution && metadata.freqDistribution.distribution === 'balanced') {
-            score += 0.2;
-        }
-
-        return score;
-    }
-
-    scoreTornado(metadata) {
-        // Good for dynamic, energetic content
-        let score = 0.4;
-
-        // Prefer for high amplitude and energy
-        if (metadata.amplitude > 0.4) {
-            score += 0.4;
-        }
-
-        if (metadata.energyBands) {
-            const totalEnergy = Object.values(metadata.energyBands).reduce((a, b) => a + b, 0);
-            if (totalEnergy > 2.5) {
-                score += 0.3;
-            }
-        }
-
-        // Prefer for dynamic rhythm
-        if (metadata.rhythm && metadata.rhythm.variance > 0.2) {
-            score += 0.3;
-        }
-
-        return score;
-    }
-
-    scoreCyclone(metadata) {
-        // Good for swirling, rotating content
-        let score = 0.4;
-
-        // Prefer for balanced frequency distribution
-        if (metadata.freqDistribution && metadata.freqDistribution.distribution === 'balanced') {
-            score += 0.4;
-        }
-
-        // Prefer for moderate to high amplitude
-        if (metadata.amplitude > 0.3) {
-            score += 0.3;
-        }
-
-        // Prefer for wide spectral spread
-        if (metadata.spectralSpread > 2000) {
-            score += 0.3;
-        }
-
-        return score;
-    }
-
-    scoreFlowing(metadata) {
-        // Good for smooth, flowing content
-        let score = 0.5;
-
-        // Prefer for stable, flowing audio
-        if (metadata.rhythm && metadata.rhythm.stability > 0.7) {
-            score += 0.4;
-        }
-
-        // Prefer for moderate amplitude
-        if (metadata.amplitude > 0.25 && metadata.amplitude < 0.7) {
-            score += 0.3;
-        }
-
-        // Prefer for balanced distribution
-        if (metadata.freqDistribution && metadata.freqDistribution.distribution === 'balanced') {
-            score += 0.3;
-        }
-
-        return score;
-    }
-
-    scoreRipple(metadata) {
-        // Good for percussive, rhythmic content
-        let score = 0.4;
-
-        // Prefer for rhythmic beats
-        if (metadata.rhythm && metadata.rhythm.beat) {
-            score += 0.4;
-        }
-
-        // Prefer for moderate amplitude
-        if (metadata.amplitude > 0.2 && metadata.amplitude < 0.6) {
-            score += 0.3;
-        }
-
-        // Prefer for bass content
-        if (metadata.freqDistribution && metadata.freqDistribution.low > 0.3) {
-            score += 0.3;
-        }
-
-        return score;
-    }
-
-    scoreKaleidoscope(metadata) {
-        // Good for complex, full-spectrum content
-        let score = 0.5;
-        if (metadata.energyBands) {
-            const totalEnergy = Object.values(metadata.energyBands).reduce((a, b) => a + b, 0);
-            if (totalEnergy > 2.0) score += 0.4;
-        }
-        if (metadata.amplitude > 0.3) score += 0.3;
-        return score;
-    }
-
-    scoreMandala(metadata) {
-        // Good for balanced, stable content
-        let score = 0.5;
-        if (metadata.rhythm && metadata.rhythm.stability > 0.6) score += 0.4;
-        if (metadata.freqDistribution && metadata.freqDistribution.distribution === 'balanced') score += 0.3;
-        return score;
-    }
-
-    scoreFractal(metadata) {
-        // Good for complex frequency content
-        let score = 0.4;
-        if (metadata.spectralSpread > 2000) score += 0.4;
-        if (metadata.amplitude > 0.25) score += 0.3;
-        return score;
-    }
-
-    scoreTunnel(metadata) {
-        // Good for dynamic, energetic content
-        let score = 0.4;
-        if (metadata.amplitude > 0.35) score += 0.4;
-        if (metadata.rhythm && metadata.rhythm.variance > 0.15) score += 0.3;
-        return score;
-    }
-
-    scoreMorphing(metadata) {
-        // Good for changing, dynamic content
-        let score = 0.5;
-        if (metadata.rhythm && metadata.rhythm.variance > 0.1) score += 0.4;
-        if (metadata.amplitude > 0.3) score += 0.3;
-        return score;
-    }
-
-    scoreTracing(metadata) {
-        // Good for dynamic, moving content
-        let score = 0.5;
-        if (metadata.amplitude > 0.25) score += 0.4;
-        if (metadata.rhythm && metadata.rhythm.variance > 0.1) score += 0.3;
-        return score;
-    }
-
-    scoreCrossing(metadata) {
-        // Good for complex, multi-layered content
-        let score = 0.5;
-        if (metadata.energyBands) {
-            const activeBands = Object.values(metadata.energyBands).filter(e => e > 0.1).length;
-            if (activeBands >= 4) score += 0.4;
-        }
-        if (metadata.amplitude > 0.3) score += 0.3;
-        return score;
-    }
-
-    scoreCombined(metadata) {
-        // Good for high-energy, complex content (combines bars + trippy features)
-        let score = 0.5;
-        if (metadata.amplitude > 0.35) score += 0.4;
-        if (metadata.spectralSpread > 2000) score += 0.3;
-        if (metadata.energyBands) {
-            const totalEnergy = Object.values(metadata.energyBands).reduce((a, b) => a + b, 0);
-            if (totalEnergy > 2.0) score += 0.3;
-        }
-        return score;
     }
 
     /**
@@ -450,4 +142,3 @@ export class VisualizerSelector {
         return reasons[visualizer] || 'Unknown visualizer';
     }
 }
-

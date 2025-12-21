@@ -530,7 +530,8 @@ export class ThreeJSVisualizer {
         });
 
         // ===== CAMERA =====
-        const cameraRadius = 6 - bassVal * 0.5;
+        // Stabilize camera: Move slightly BACK on bass to see the explosion, don't zoom in
+        const cameraRadius = 6.0 + bassVal * 0.5;
         this.camera.position.x = Math.sin(time * 0.15) * 0.5;
         this.camera.position.y = Math.cos(time * 0.1) * 0.3;
         this.camera.position.z = cameraRadius;
@@ -538,7 +539,7 @@ export class ThreeJSVisualizer {
 
         // ===== BLOOM =====
         if (this.bloomPass) {
-            this.bloomPass.strength = 0.8 + this.beatDecay * 0.6 + ampVal * 0.4;
+            this.bloomPass.strength = 0.8 + this.beatDecay * 0.5 + ampVal * 0.3;
         }
 
         // ===== RENDER =====
