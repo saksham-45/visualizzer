@@ -1,7 +1,12 @@
 /**
- * Visualizers Module (Integrated with MeshVisualizers)
+ * Visualizers Module (Integrated with MeshVisualizers, PremiumVisualizers, and FluidVisualizers)
+ * Enhanced with Music Intelligence and Beat Effects
  */
 import { MeshVisualizers } from './meshVisualizers.js';
+import { PremiumVisualizers } from './premiumVisualizers.js';
+import { FluidVisualizers } from './fluidVisualizers.js';
+import { MusicIntelligence } from './musicIntelligence.js';
+import { BeatEffects } from './beatEffects.js';
 
 export class Visualizers {
     constructor(canvas, audioCapture, audioAnalyzer) {
@@ -19,8 +24,41 @@ export class Visualizers {
         this.meshVisualizer = new MeshVisualizers(canvas, audioCapture, audioAnalyzer);
         this.meshTypes = [
             'wave', 'bars', 'flowing', 'spiral', 'tornado', 'cyclone', 'ripple', 'morphing', 'trippy',
-            'depthlines', 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid'
+            'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
+            'spiral1', 'spiral2', 'spiral3', 'spiral4', 'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala', 'fractal'
         ];
+
+        // Initialize PremiumVisualizers
+        this.premiumVisualizer = new PremiumVisualizers(canvas, audioCapture, audioAnalyzer);
+        this.premiumTypes = [
+            'appleWaveform', 'circularHarmonic', 'frequencyBarGalaxy', 'enhancedTunnel',
+            'particleNebula', 'mathematicalSpiral', 'spectrumCircleHalo', 'fractalBloom',
+            '3DGeometryShapeshifter', 'hinduGodPsychedelic'
+        ];
+
+        // Initialize FluidVisualizers (NEW - WebGL2 fluid simulation)
+        this.fluidVisualizer = new FluidVisualizers(canvas, audioCapture, audioAnalyzer);
+        this.fluidTypes = FluidVisualizers.getTypes();
+
+        // Initialize Music Intelligence (NEW - predictive audio analysis)
+        this.musicIntelligence = new MusicIntelligence(audioAnalyzer);
+        this.intelligenceState = null;
+
+        // Initialize Beat Effects (NEW - spectacular beat-synced effects)
+        this.beatEffects = new BeatEffects(canvas);
+
+        // Intelligent mode settings
+        this.intelligentMode = true;
+        this.lastVisualizerChange = 0;
+        this.minVisualizerDuration = 8000; // Minimum 8 seconds per visualizer
+
+        // Camera state for intelligent zoom/spread
+        this.cameraState = {
+            zoom: 1.0,
+            targetZoom: 1.0,
+            spread: 1.0,
+            targetSpread: 1.0
+        };
 
         // Resize canvas
         this.resize();
@@ -37,13 +75,17 @@ export class Visualizers {
     }
 
     setVisualizer(type) {
+        // Alias depthlines to new 3D tunnel
+        if (type === 'depthlines') type = 'tunnel';
+
         if (this.currentVisualizer === type) return;
 
         this.previousVisualizer = this.currentVisualizer;
         this.targetVisualizer = type;
+        this.currentVisualizer = type; // Set immediately so rendering starts
         this.transitionProgress = 0;
 
-        const transitionDuration = 2000;
+        const transitionDuration = 500; // Shorter transition
         const startTime = Date.now();
 
         const animateTransition = () => {
@@ -54,7 +96,6 @@ export class Visualizers {
             if (this.transitionProgress < 1) {
                 requestAnimationFrame(animateTransition);
             } else {
-                this.currentVisualizer = type;
                 this.targetVisualizer = null;
                 this.previousVisualizer = null;
                 this.previousData = null;
@@ -70,30 +111,120 @@ export class Visualizers {
 
     render() {
         const audioData = this.audioCapture.getAudioData();
+        const metadata = this.audioAnalyzer?.analyze();
+
         if (!audioData) {
-            this.ctx.clearRect(0, 0, this.width, this.height);
+            // Show fallback idle animation
+            this.ctx.fillStyle = 'rgb(10, 10, 20)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+
+            // Draw idle pulsing circle
+            const now = Date.now() / 1000;
+            const pulse = Math.sin(now * 2) * 0.5 + 0.5;
+            this.ctx.fillStyle = `rgba(100, 200, 255, ${pulse * 0.5})`;
+            this.ctx.beginPath();
+            this.ctx.arc(this.width / 2, this.height / 2, 50 + pulse * 30, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            this.ctx.font = '14px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Waiting for audio...', this.width / 2, this.height - 30);
             return;
         }
 
-        const metadata = this.audioAnalyzer.analyze();
+        // Update Music Intelligence
+        if (this.musicIntelligence && metadata) {
+            this.intelligenceState = this.musicIntelligence.update(metadata);
+
+            // Process pending effects from intelligence
+            const pendingEffects = this.musicIntelligence.getPendingEffects();
+            for (const effect of pendingEffects) {
+                this.beatEffects.trigger(effect.type, effect.params);
+            }
+
+            // Trigger drop effect if drop detected
+            if (this.intelligenceState?.currentSection === 'drop' &&
+                this.intelligenceState?.sectionConfidence > 0.7) {
+                if (!this._lastDropTime || Date.now() - this._lastDropTime > 2000) {
+                    this.beatEffects.trigger('drop', {
+                        intensity: this.intelligenceState.recommendedIntensity,
+                        x: this.width / 2,
+                        y: this.height / 2
+                    });
+                    this._lastDropTime = Date.now();
+                }
+            }
+
+            // Update camera state based on intelligence recommendations
+            const cameraRec = this.musicIntelligence.getCameraRecommendation(Date.now());
+            this.cameraState.targetZoom = cameraRec.zoom;
+
+            const spreadRec = this.musicIntelligence.getSpreadRecommendation();
+            this.cameraState.targetSpread = spreadRec.spread;
+
+            // Intelligent visualizer selection - DELEGATED TO VisualizerSelector via main.js
+            // We expose intelligence data but don't switch autonomously to prevent conflicts.
+            if (this.intelligentMode && this.intelligenceState?.recommendedVisualizer) {
+                // Logic moved to VisualizerSelector
+            }
+        }
+
+        // Smooth camera state transitions
+        this.cameraState.zoom += (this.cameraState.targetZoom - this.cameraState.zoom) * 0.05;
+        this.cameraState.spread += (this.cameraState.targetSpread - this.cameraState.spread) * 0.05;
+
+        // Update beat effects
+        this.beatEffects.update(0.016, metadata);
+        this.beatEffects.resize(this.width, this.height);
+
         const visualizerType = this.targetVisualizer || this.currentVisualizer;
 
-        // Clear canvas
+        // Clear canvas with slight trail
         this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
         this.ctx.fillRect(0, 0, this.width, this.height);
 
-        // Mesh visualizers delegation
-        if (this.meshTypes.includes(visualizerType)) {
+        // Apply camera zoom transform if significant
+        if (Math.abs(this.cameraState.zoom - 1.0) > 0.01) {
+            this.ctx.save();
+            this.ctx.translate(this.width / 2, this.height / 2);
+            this.ctx.scale(this.cameraState.zoom, this.cameraState.zoom);
+            this.ctx.translate(-this.width / 2, -this.height / 2);
+        }
+
+        // Delegate based on visualizer type
+        if (this.fluidTypes.includes(visualizerType)) {
+            // NEW: Fluid visualizers (WebGL2)
+            this.fluidVisualizer.render(visualizerType, audioData, metadata);
+        } else if (this.meshTypes.includes(visualizerType)) {
+            // Mesh visualizers
             this.meshVisualizer.setVisualizer(visualizerType);
             this.meshVisualizer.render();
+        } else if (this.premiumTypes.includes(visualizerType)) {
+            // Premium visualizers
+            this.premiumVisualizer.render(visualizerType, audioData, metadata);
         } else {
-            // Regular visualizers
+            // Regular/legacy visualizers
             if (this.targetVisualizer && this.previousVisualizer && this.transitionProgress < 1) {
                 this.renderMorphingTransition(audioData, metadata);
             } else {
-                this.renderVisualizer(visualizerType, audioData, metadata);
+                try {
+                    this.renderVisualizer(visualizerType, audioData, metadata);
+                } catch (err) {
+                    console.error('Visualizer render error:', visualizerType, err);
+                    // Fallback to a fluid visualizer on error
+                    this.fluidVisualizer.render('mercuryOrbs', audioData, metadata);
+                }
             }
         }
+
+        // Restore transform if applied
+        if (Math.abs(this.cameraState.zoom - 1.0) > 0.01) {
+            this.ctx.restore();
+        }
+
+        // Render beat effects on top of everything
+        this.beatEffects.render(this.ctx);
     }
 
     renderMorphingTransition(audioData, metadata) {

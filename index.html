@@ -1,14 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Audio Visualizer</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 </head>
+
 <body>
     <canvas id="visualizerCanvas"></canvas>
-    
+
     <div class="ui-overlay" id="uiOverlay">
         <div class="header">
             <h1>Visualizzer</h1>
@@ -18,7 +29,7 @@
                 <button id="fullscreenBtn" class="btn btn-secondary">Fullscreen</button>
                 <select id="audioSource" class="select">
                     <option value="mic">Microphone</option>
-                    <option value="system">System Audio (Experimental)</option>
+                    <option value="system">System Audio (Select Tab/Window)</option>
                 </select>
                 <label class="checkbox-label">
                     <input type="checkbox" id="autoMode" checked>
@@ -26,6 +37,11 @@
                 </label>
                 <select id="visualizerSelect" class="select">
                     <option value="auto">Auto (Recommended)</option>
+                    <optgroup label="🌊 Premium Mercury (Three.js)">
+                        <option value="mercuryOrbs">💿 True Mercury</option>
+                        <option value="liquidMetal">🔮 Liquid Metal</option>
+                        <option value="metallicNebula">🌌 Chromium Nebula</option>
+                    </optgroup>
                     <optgroup label="Classic Effects">
                         <option value="tornado">Tornado Spiral</option>
                         <option value="cyclone">Cyclone Vortex</option>
@@ -50,10 +66,13 @@
                         <option value="starburst">Starburst</option>
                         <option value="horizongrid">Horizon Grid</option>
                     </optgroup>
+                    <optgroup label="Premium">
+                        <option value="hinduGodPsychedelic">🕉️ Hindu God Psychedelic</option>
+                    </optgroup>
                 </select>
             </div>
         </div>
-        
+
         <div class="info-panel">
             <div class="info-item">
                 <span class="label">Visualizer:</span>
@@ -76,7 +95,7 @@
 
     <script>
         // Error handler to catch and display any JavaScript errors
-        window.addEventListener('error', function(e) {
+        window.addEventListener('error', function (e) {
             console.error('JavaScript Error:', e.error);
             // Show error on page
             const errorDiv = document.createElement('div');
@@ -84,18 +103,18 @@
             errorDiv.innerHTML = '<strong>JavaScript Error:</strong><br>' + (e.error ? e.error.message : e.message) + '<br><small>' + (e.filename || 'unknown') + ':' + (e.lineno || '?') + '</small><br><button onclick="this.parentElement.remove()" style="margin-top:10px;padding:5px 10px;">Close</button>';
             document.body.appendChild(errorDiv);
         });
-        
+
         // Log when DOM is ready
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('DOM loaded');
             console.log('UI Overlay:', document.querySelector('#uiOverlay'));
             console.log('Header:', document.querySelector('.header'));
             console.log('Controls:', document.querySelector('.controls'));
             console.log('Canvas:', document.querySelector('#visualizerCanvas'));
         });
-        
+
         // Initialize canvas with black background
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             const canvas = document.getElementById('visualizerCanvas');
             if (canvas) {
                 const ctx = canvas.getContext('2d');
@@ -111,5 +130,5 @@
     <script type="module" src="visualizerSelector.js"></script>
     <script type="module" src="main.js"></script>
 </body>
-</html>
 
+</html>

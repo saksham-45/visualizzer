@@ -90,9 +90,13 @@ class VisualizerApp {
         this.stopBtn.addEventListener('click', () => this.stop());
         this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
         this.visualizerSelect.addEventListener('change', (e) => {
-            if (!this.autoModeCheckbox.checked) {
-                this.visualizers?.setVisualizer(e.target.value);
+            console.log('[main.js] Visualizer dropdown changed:', e.target.value);
+            if (!this.visualizers) {
+                console.warn('[main.js] visualizers not initialized');
+            } else {
+                console.log('[main.js] Calling setVisualizer with', e.target.value);
             }
+            this.visualizers?.setVisualizer(e.target.value);
         });
         
         document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
@@ -202,8 +206,9 @@ class VisualizerApp {
             // Initialize analyzer
             this.audioAnalyzer = new AudioAnalyzer(this.audioCapture);
             
-            // Initialize mesh visualizers (cloth-like flexible surfaces)
-            this.visualizers = new MeshVisualizers(
+            // Initialize main Visualizers manager (supports mesh + premium visualizers)
+            const { Visualizers } = await import('./visualizers.js');
+            this.visualizers = new Visualizers(
                 this.canvas,
                 this.audioCapture,
                 this.audioAnalyzer
