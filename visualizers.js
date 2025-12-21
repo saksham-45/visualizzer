@@ -24,7 +24,8 @@ export class Visualizers {
         this.meshVisualizer = new MeshVisualizers(canvas, audioCapture, audioAnalyzer);
         this.meshTypes = [
             'wave', 'bars', 'flowing', 'spiral', 'tornado', 'cyclone', 'ripple', 'morphing', 'trippy',
-            'depthlines', 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid'
+            'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
+            'spiral1', 'spiral2', 'spiral3', 'spiral4', 'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala', 'fractal'
         ];
 
         // Initialize PremiumVisualizers
@@ -74,6 +75,9 @@ export class Visualizers {
     }
 
     setVisualizer(type) {
+        // Alias depthlines to new 3D tunnel
+        if (type === 'depthlines') type = 'tunnel';
+
         if (this.currentVisualizer === type) return;
 
         this.previousVisualizer = this.currentVisualizer;

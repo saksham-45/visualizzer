@@ -20,11 +20,11 @@ export class VisualizerSelector {
             // Classic mesh visualizers
             'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
             'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala',
-            'fractal', 'tunnel', 'morphing',
+            'fractal', 'morphing',
             // 3D camera visualizers
-            'depthlines', 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
-            // Premium Fluid visualizers
-            'mercuryOrbs', 'liquidMetal', 'metallicNebula'
+            'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
+            // Premium Fluid & 3D visualizers
+            'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'tunnel'
         ];
 
         // Shuffle initially for unique session experience

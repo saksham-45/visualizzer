@@ -416,6 +416,7 @@ export class MusicIntelligence {
         }
 
         // Only trigger anticipation ring during buildups and rarely to avoid clutter
+        /* Disabled per user request (concentric lines appearing too often)
         if (this.beatImminent && this.beatConfidence > 0.8 && this.isBuildup && Math.random() > 0.9) {
             this.triggerEffect('beatAnticipation', {
                 timeUntilBeat: this.nextBeatPrediction - now,
@@ -423,6 +424,7 @@ export class MusicIntelligence {
                 color: null
             });
         }
+        */
     }
 
     selectVisualizerForSection(section, metadata) {

@@ -123,7 +123,8 @@ export class FluidVisualizers {
         return [
             'mercuryOrbs',
             'liquidMetal',
-            'metallicNebula'
+            'metallicNebula',
+            'tunnel'
         ];
     }
 }
