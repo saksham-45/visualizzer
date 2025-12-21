@@ -12,17 +12,17 @@ class VisualizerApp {
         this.visualizerSelector = new VisualizerSelector();
         this.animationId = null;
         this.isRunning = false;
-        
+
         this.uiHideTimeout = null;
         this.uiVisible = true;
         this.UI_HIDE_DELAY = 3000;
-        
+
         this.transitionParticles = [];
         this.isTransitioning = false;
         this.transitionDuration = 0.5;
         this.transitionProgress = 0;
         this.lastVizType = null;
-        
+
         this.initializeElements();
         this.attachEventListeners();
         this.setupAutoHideUI();
@@ -39,7 +39,7 @@ class VisualizerApp {
         this.uiOverlay = document.getElementById('uiOverlay');
         this.header = document.querySelector('.header');
         this.infoPanel = document.querySelector('.info-panel');
-        
+
         this.currentVizSpan = document.getElementById('currentViz');
         this.freqPeakSpan = document.getElementById('freqPeak');
         this.amplitudeSpan = document.getElementById('amplitude');
@@ -91,18 +91,24 @@ class VisualizerApp {
         this.fullscreenBtn.addEventListener('click', () => this.toggleFullscreen());
         this.visualizerSelect.addEventListener('change', (e) => {
             console.log('[main.js] Visualizer dropdown changed:', e.target.value);
+
+            // Manual selection should disable Auto-Mode
+            if (this.autoModeCheckbox) {
+                this.autoModeCheckbox.checked = false;
+            }
+
             if (!this.visualizers) {
                 console.warn('[main.js] visualizers not initialized');
             } else {
                 console.log('[main.js] Calling setVisualizer with', e.target.value);
+                this.visualizers.setVisualizer(e.target.value);
             }
-            this.visualizers?.setVisualizer(e.target.value);
         });
-        
+
         document.addEventListener('fullscreenchange', () => this.handleFullscreenChange());
         document.addEventListener('webkitfullscreenchange', () => this.handleFullscreenChange());
         document.addEventListener('msfullscreenchange', () => this.handleFullscreenChange());
-        
+
         this.createExitButton();
     }
 
@@ -141,14 +147,14 @@ class VisualizerApp {
     }
 
     handleFullscreenChange() {
-        const isFullscreen = !!(document.fullscreenElement || 
-                               document.webkitFullscreenElement || 
-                               document.msFullscreenElement);
-        
+        const isFullscreen = !!(document.fullscreenElement ||
+            document.webkitFullscreenElement ||
+            document.msFullscreenElement);
+
         if (this.exitFullscreenBtn) {
             this.exitFullscreenBtn.style.display = isFullscreen ? 'flex' : 'none';
         }
-        
+
         // Resize canvas
         setTimeout(() => {
             if (this.visualizers) {
@@ -167,7 +173,7 @@ class VisualizerApp {
             } else if (document.documentElement.msRequestFullscreen) {
                 document.documentElement.msRequestFullscreen();
             }
-            
+
             // Resize canvas for fullscreen
             setTimeout(() => {
                 if (this.visualizers) {
@@ -183,7 +189,7 @@ class VisualizerApp {
             } else if (document.msExitFullscreen) {
                 document.msExitFullscreen();
             }
-            
+
             // Resize canvas after exiting
             setTimeout(() => {
                 if (this.visualizers) {
@@ -198,14 +204,14 @@ class VisualizerApp {
             // Show loading state
             this.startBtn.disabled = true;
             this.startBtn.textContent = 'Starting...';
-            
+
             // Initialize audio capture
             const sourceType = this.audioSourceSelect.value;
             await this.audioCapture.start(sourceType);
-            
+
             // Initialize analyzer
             this.audioAnalyzer = new AudioAnalyzer(this.audioCapture);
-            
+
             // Initialize main Visualizers manager (supports mesh + premium visualizers)
             const { Visualizers } = await import('./visualizers.js');
             this.visualizers = new Visualizers(
@@ -213,7 +219,7 @@ class VisualizerApp {
                 this.audioCapture,
                 this.audioAnalyzer
             );
-            
+
             // Set initial visualizer
             if (this.autoModeCheckbox.checked) {
                 // Set a default classic visualizer, auto-selector will change it based on audio
@@ -227,19 +233,19 @@ class VisualizerApp {
                     this.visualizers.setVisualizer('tornado');
                 }
             }
-            
+
             this.isRunning = true;
-            
+
             // Start animation loop immediately (even without audio)
             this.animate();
-            
+
             // UI stays visible - no auto-hide
             // this.startUIHideTimer();
-            
+
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
             this.startBtn.textContent = 'Start';
-            
+
         } catch (error) {
             console.error('Error starting visualizer:', error);
             alert(`Error: ${error.message}\n\nPlease ensure you grant microphone permissions or select a tab/window for system audio.`);
@@ -250,27 +256,27 @@ class VisualizerApp {
 
     stop() {
         this.isRunning = false;
-        
+
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
-        
+
         this.audioCapture.stop();
         this.visualizers = null;
         this.audioAnalyzer = null;
-        
+
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
+
         this.startBtn.disabled = false;
         this.stopBtn.disabled = true;
-        
+
         this.currentVizSpan.textContent = 'None';
         this.freqPeakSpan.textContent = '0 Hz';
         this.amplitudeSpan.textContent = '0%';
         this.loudnessSpan.textContent = '0 dB';
-        
+
         this.showUI();
         if (this.uiHideTimeout) {
             clearTimeout(this.uiHideTimeout);
@@ -279,42 +285,42 @@ class VisualizerApp {
 
     animate() {
         if (!this.isRunning) return;
-        
+
         // Analyze audio (may be null if not started)
         const metadata = this.audioAnalyzer?.analyze();
-        
+
         // Auto-select visualizer if enabled - always use smooth transitions
         if (this.autoModeCheckbox.checked && metadata && this.visualizers) {
             const selectedViz = this.visualizerSelector.selectVisualizer(metadata);
             // Always trigger transition if different (will handle smooth morphing)
             if (selectedViz !== this.visualizers.currentVisualizer) {
                 // Only set if not already transitioning to this one
-                if (selectedViz !== this.visualizers.targetVisualizer || 
+                if (selectedViz !== this.visualizers.targetVisualizer ||
                     this.visualizers.transitionProgress >= 1) {
                     this.visualizers.setVisualizer(selectedViz);
                 }
             }
         }
-        
+
         // Render visualizer (will show idle animation if no audio)
         if (this.visualizers) {
             this.visualizers.render();
         }
-        
+
         // Update info display
         this.updateInfoDisplay(metadata);
-        
+
         // Continue animation
         this.animationId = requestAnimationFrame(() => this.animate());
     }
 
     updateInfoDisplay(metadata) {
         if (!metadata) return;
-        
+
         // Update current visualizer
         const currentViz = this.visualizers?.currentVisualizer || 'None';
         this.currentVizSpan.textContent = currentViz.charAt(0).toUpperCase() + currentViz.slice(1);
-        
+
         // Update frequency peak
         if (metadata.dominantFreq) {
             const freq = metadata.dominantFreq.frequency;
@@ -324,10 +330,10 @@ class VisualizerApp {
                 this.freqPeakSpan.textContent = `${Math.round(freq)} Hz`;
             }
         }
-        
+
         // Update amplitude
         this.amplitudeSpan.textContent = `${Math.round(metadata.amplitude * 100)}%`;
-        
+
         // Update loudness
         const loudness = metadata.loudness;
         if (loudness === -Infinity || isNaN(loudness)) {

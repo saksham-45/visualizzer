@@ -73,7 +73,12 @@ export class FluidVisualizers {
             this.initialize();
         }
 
-        // Update 3D mercury scene
+        // Sync mode if it changed (Fixes the issue where tunnel wasn't rendering)
+        if (this.currentVisualizer !== type) {
+            this.setVisualizer(type);
+        }
+
+        // Update 3D scene
         if (this.threeVisualizer && this.isActive) {
             this.threeVisualizer.update(metadata);
         }
@@ -81,34 +86,35 @@ export class FluidVisualizers {
         // Clear 2D canvas to transparent so 3D shows through
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Trigger beat effects
+        // DAMPENED: Trigger beat effects less frequently in 3D to maintain stability
         const now = Date.now();
-        if (metadata?.rhythm?.beat && now - this.lastBeatTime > 150) {
+        if (metadata?.rhythm?.beat && (now - this.lastBeatTime > 400)) {
             this.beatEffects.trigger('beat', {
-                intensity: (metadata.amplitude || 0.5) * 1.2,
+                intensity: (metadata.amplitude || 0.5) * 0.8,
                 x: this.width / 2,
                 y: this.height / 2
             });
             this.lastBeatTime = now;
         }
 
-        // High amplitude triggers flash
-        if (metadata?.amplitude > 0.75) {
+        // DAMPENED: High amplitude triggers subtle flash
+        if (metadata?.amplitude > 0.85) {
             const hue = (metadata.spectralCentroid / 30) % 360 || 0;
             this.beatEffects.trigger('flash', {
-                intensity: metadata.amplitude * 0.4,
-                color: { h: hue, s: 100, l: 70 }
+                intensity: metadata.amplitude * 0.2,
+                color: { h: hue, s: 80, l: 60 }
             });
         }
 
-        // Drop detection
-        if (metadata?.energyBands?.bass > 0.8 && metadata?.amplitude > 0.7) {
-            if (now - this.lastBeatTime > 500) {
+        // DAMPENED: Significant bass triggers shockwave
+        if (metadata?.energyBands?.bass > 0.9 && metadata?.amplitude > 0.8) {
+            if (now - (this.lastShockwaveTime || 0) > 2000) {
                 this.beatEffects.trigger('shockwave', {
-                    intensity: metadata.energyBands.bass,
+                    intensity: 0.5,
                     x: this.width / 2,
                     y: this.height / 2
                 });
+                this.lastShockwaveTime = now;
             }
         }
 

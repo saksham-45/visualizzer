@@ -80,6 +80,12 @@ export class Visualizers {
 
         if (this.currentVisualizer === type) return;
 
+        // FIX: If already transitioning, snap to the current target immediately 
+        // to prevent "flickering" or a "third visualizer" showing during overlapping transitions.
+        if (this.transitionProgress < 1 && this.targetVisualizer) {
+            this._snapToVisualizer();
+        }
+
         this.previousVisualizer = this.currentVisualizer;
         this.targetVisualizer = type;
         this.currentVisualizer = type; // Set immediately so rendering starts
@@ -91,6 +97,11 @@ export class Visualizers {
         const animateTransition = () => {
             const elapsed = Date.now() - startTime;
             const rawProgress = elapsed / transitionDuration;
+
+            // If target changed while in transition, this loop might be orphaned.
+            // Check if we are still working on the correct target.
+            if (this.currentVisualizer !== type) return;
+
             this.transitionProgress = this.easeInOutCubic(Math.min(rawProgress, 1));
 
             if (this.transitionProgress < 1) {
@@ -103,6 +114,12 @@ export class Visualizers {
         };
 
         animateTransition();
+    }
+
+    _snapToVisualizer() {
+        this.transitionProgress = 1;
+        this.targetVisualizer = null;
+        this.previousVisualizer = null;
     }
 
     easeInOutCubic(t) {
@@ -141,6 +158,38 @@ export class Visualizers {
             const pendingEffects = this.musicIntelligence.getPendingEffects();
             for (const effect of pendingEffects) {
                 this.beatEffects.trigger(effect.type, effect.params);
+            }
+
+            // DAMPENED: Trigger beat effects less frequently in 3D to maintain stability
+            const now = Date.now();
+            if (metadata?.rhythm?.beat && (now - (this.lastBeatTime || 0) > 400)) {
+                this.beatEffects.trigger('beat', {
+                    intensity: (metadata.amplitude || 0.5) * 0.8,
+                    x: this.width / 2,
+                    y: this.height / 2
+                });
+                this.lastBeatTime = now;
+            }
+
+            // DAMPENED: High amplitude triggers subtle flash
+            if (metadata?.amplitude > 0.85) {
+                const hue = (metadata.spectralCentroid / 30) % 360 || 0;
+                this.beatEffects.trigger('flash', {
+                    intensity: metadata.amplitude * 0.2,
+                    color: { h: hue, s: 80, l: 60 }
+                });
+            }
+
+            // DAMPENED: Significant bass triggers shockwave
+            if (metadata?.energyBands?.bass > 0.9 && metadata?.amplitude > 0.8) {
+                if (now - (this.lastShockwaveTime || 0) > 2000) {
+                    this.beatEffects.trigger('shockwave', {
+                        intensity: 0.5,
+                        x: this.width / 2,
+                        y: this.height / 2
+                    });
+                    this.lastShockwaveTime = now;
+                }
             }
 
             // Trigger drop effect if drop detected
