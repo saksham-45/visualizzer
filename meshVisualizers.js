@@ -1943,58 +1943,178 @@ export class MeshVisualizers {
     }
 
     /**
-     * Apple Music Style: Depth Lines - Lines coming in/out of screen with 3D perspective
-     * Uses camera for beat-reactive movement
+     * Authentic Tunnel Journey - Travel through a dynamic music-reactive tunnel
+     * Tunnel narrows/broadens and pulses with the music
      */
     renderDepthLines(audioData, metadata) {
         if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const lineCount = 80;
-
         const intensity = this.camera ? this.camera.getIntensityMultiplier() : 1;
-        const speed = this.time * 3 + (this.camera ? this.camera.z * 0.02 : 0);
+        const travelSpeed = 80;
+        const tunnelRings = 60;
+        const segmentsPerRing = 32;
+        const maxTunnelRadius = Math.min(this.width, this.height) * 0.4;
+        const ringSpacing = 25;
 
-        for (let i = 0; i < lineCount; i++) {
-            const angle = (i / lineCount) * Math.PI * 2;
-            const freqIndex = Math.floor((i / lineCount) * bufferLength);
+        const travelDistance = this.time * travelSpeed;
+
+        for (let ring = 0; ring < tunnelRings; ring++) {
+            const zPos = ring * ringSpacing - (travelDistance % (tunnelRings * ringSpacing));
+            const z3d = zPos - 300;
+
+            if (z3d > 200 || z3d < -1500) continue;
+
+            const distanceFromViewer = Math.abs(z3d);
+            const ringDepth = (z3d + 1500) / 1700;
+            const freqIndex = Math.floor(ringDepth * bufferLength * 0.8) % bufferLength;
             const energy = frequencyData[freqIndex] / 255;
-            const wave = (timeData[freqIndex] / 128.0 - 1) * 30;
+            const wave = (timeData[freqIndex] / 128.0 - 1);
 
-            const lineSegments = 20;
-            for (let j = 0; j < lineSegments; j++) {
-                const t = (j / lineSegments + (speed * 0.08) % 1);
-                const z3d = (1 - t) * 600 - 200;
+            const bassEnergy = (metadata.energyBands?.bass || 0) / 5000;
+            const midEnergy = (metadata.energyBands?.mid || 0) / 3000;
 
-                const baseRadius = 30 + t * Math.min(this.width, this.height) * 0.6;
-                const wobble = this.fastSin(angle * 4 + t * 8 + this.time * 6) * 35 * energy * intensity;
-                const radius = baseRadius + wobble + wave * energy;
+            const tunnelPulse = this.fastSin(this.time * 2.5 + ring * 0.3) * 0.25 + 1;
+            const beatPulse = this.fastSin(this.time * 8) * 0.2 * bassEnergy + 0.9;
+            const audioNarrow = 0.65 + energy * 0.6 + Math.abs(wave) * 0.25;
+            const dynamicScale = tunnelPulse * beatPulse * audioNarrow;
+
+            const depthFactor = Math.max(0.2, 1 - Math.abs(z3d) / 1200);
+            const baseRadius = maxTunnelRadius * dynamicScale * depthFactor;
+
+            const waveRipple = this.fastSin(ring * 0.6 + this.time * 4) * 40 * energy * intensity;
+            const disturbance = this.fastCos(ring * 0.9 + this.time * 3.5) * 35 * midEnergy * intensity;
+            const tunnelRadius = baseRadius + waveRipple + disturbance + wave * 60 * energy;
+
+            const points = [];
+            for (let seg = 0; seg <= segmentsPerRing; seg++) {
+                const angle = (seg / segmentsPerRing) * Math.PI * 2;
+
+                const segFreqIndex = Math.floor((seg / segmentsPerRing) * bufferLength) % bufferLength;
+                const segEnergy = frequencyData[segFreqIndex] / 255;
+
+                const localWobble = this.fastSin(angle * 4 + this.time * 5 + ring * 0.2) * 25 * segEnergy * intensity;
+                const radius = Math.max(5, tunnelRadius + localWobble);
 
                 const x3d = this.fastCos(angle) * radius;
                 const y3d = this.fastSin(angle) * radius;
 
-                const projected = this.camera ? this.camera.project(x3d, y3d, z3d, centerX, centerY) : { x: centerX + x3d * 0.5, y: centerY + y3d * 0.5, scale: 1 };
-                if (!projected) continue;
+                const projected = this.camera ?
+                    this.camera.project(x3d, y3d, z3d, centerX, centerY) :
+                    {
+                        x: centerX + (x3d / (1 + Math.abs(z3d) / 500)),
+                        y: centerY + (y3d / (1 + Math.abs(z3d) / 500)),
+                        scale: Math.max(0.1, 1 / (1 + Math.abs(z3d) / 400))
+                    };
 
-                const hue = (i * 4.5 + t * 60 + this.time * 70) % 360;
-                const brightness = 50 + energy * 40;
-                const size = Math.max(2, (4 + energy * 15) * projected.scale * intensity);
-                const alpha = Math.min(1, (0.3 + energy * 0.6 + t * 0.3) * projected.scale);
+                if (!projected || projected.scale < 0.02) continue;
 
-                this.ctx.fillStyle = `hsla(${hue}, 100%, ${brightness}%, ${alpha})`;
+                points.push({
+                    ...projected,
+                    angle,
+                    segEnergy,
+                    radius,
+                    z: z3d
+                });
+            }
+
+            if (points.length > 2) {
+                const hue = (ring * 7 + this.time * 70 + energy * 80) % 360;
+                const brightness = 40 + energy * 50 + (1 - Math.abs(z3d) / 1500) * 20;
+                const alpha = Math.min(1, (0.35 + energy * 0.6 + depthFactor * 0.25) * intensity);
+                const avgScale = points.reduce((s, p) => s + p.scale, 0) / points.length;
+
+                this.ctx.strokeStyle = `hsla(${hue}, 100%, ${brightness}%, ${alpha})`;
+                this.ctx.lineWidth = Math.max(2, (2.5 + energy * 7) * avgScale * intensity);
+                this.ctx.shadowColor = `hsla(${hue}, 100%, 65%, ${alpha * 0.6})`;
+                this.ctx.shadowBlur = 12 * energy * intensity;
+
                 this.ctx.beginPath();
-                this.ctx.arc(projected.x, projected.y, size, 0, Math.PI * 2);
-                this.ctx.fill();
+                for (let i = 0; i < points.length; i++) {
+                    const p = points[i];
+                    if (i === 0) this.ctx.moveTo(p.x, p.y);
+                    else this.ctx.lineTo(p.x, p.y);
+                }
+                this.ctx.closePath();
+                this.ctx.stroke();
+
+                this.ctx.shadowBlur = 0;
+
+                if (ring % 3 === 0 && z3d > -800) {
+                    for (let i = 0; i < points.length; i += 2) {
+                        const p = points[i];
+                        const size = Math.max(1.5, (2 + p.segEnergy * 14) * p.scale * intensity);
+                        const particleHue = (hue + i * 12) % 360;
+
+                        this.ctx.fillStyle = `hsla(${particleHue}, 100%, ${70 + p.segEnergy * 25}%, ${alpha * 0.85})`;
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                }
+            }
+
+            if (ring > 0 && ring % 5 === 0 && z3d > -1200) {
+                const prevRing = ring - 1;
+                const prevZPos = prevRing * ringSpacing - (travelDistance % (tunnelRings * ringSpacing));
+                const prevZ3d = prevZPos - 300;
+
+                if (prevZ3d > -1500) {
+                    const prevFreqIndex = Math.floor(((prevZ3d + 1500) / 1700) * bufferLength * 0.8) % bufferLength;
+                    const prevEnergy = frequencyData[prevFreqIndex] / 255;
+
+                    const prevBassEnergy = (metadata.energyBands?.bass || 0) / 5000;
+                    const prevTunnelPulse = this.fastSin(this.time * 2.5 + prevRing * 0.3) * 0.25 + 1;
+                    const prevBeatPulse = this.fastSin(this.time * 8) * 0.2 * prevBassEnergy + 0.9;
+                    const prevAudioNarrow = 0.65 + prevEnergy * 0.6;
+                    const prevDynamicScale = prevTunnelPulse * prevBeatPulse * prevAudioNarrow;
+                    const prevDepthFactor = Math.max(0.2, 1 - Math.abs(prevZ3d) / 1200);
+                    const prevBaseRadius = maxTunnelRadius * prevDynamicScale * prevDepthFactor;
+
+                    for (let seg = 0; seg < segmentsPerRing; seg += 6) {
+                        const angle = (seg / segmentsPerRing) * Math.PI * 2;
+
+                        const segFreqIndex = Math.floor((seg / segmentsPerRing) * bufferLength) % bufferLength;
+                        const segEnergy = frequencyData[segFreqIndex] / 255;
+
+                        const localWobble = this.fastSin(angle * 4 + this.time * 5 + ring * 0.2) * 25 * segEnergy * intensity;
+                        const prevLocalWobble = this.fastSin(angle * 4 + this.time * 5 + prevRing * 0.2) * 25 * segEnergy * intensity;
+
+                        const radius = Math.max(5, baseRadius + localWobble);
+                        const prevRadius = Math.max(5, prevBaseRadius + prevLocalWobble);
+
+                        const x3d = this.fastCos(angle) * radius;
+                        const y3d = this.fastSin(angle) * radius;
+                        const prevX3d = this.fastCos(angle) * prevRadius;
+                        const prevY3d = this.fastSin(angle) * prevRadius;
+
+                        const projected = this.camera ? this.camera.project(x3d, y3d, z3d, centerX, centerY) : null;
+                        const prevProjected = this.camera ? this.camera.project(prevX3d, prevY3d, prevZ3d, centerX, centerY) : null;
+
+                        if (projected && prevProjected && segEnergy > 0.2) {
+                            const connectionHue = (ring * 7 + seg * 8 + this.time * 85) % 360;
+                            const connectionAlpha = (0.2 + segEnergy * 0.35) * intensity;
+
+                            this.ctx.strokeStyle = `hsla(${connectionHue}, 90%, ${50 + segEnergy * 40}%, ${connectionAlpha})`;
+                            this.ctx.lineWidth = Math.max(1.2, (1.5 + segEnergy * 3.5) * projected.scale);
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(prevProjected.x, prevProjected.y);
+                            this.ctx.lineTo(projected.x, projected.y);
+                            this.ctx.stroke();
+                        }
+                    }
+                }
             }
         }
 
         const coreEnergy = metadata.amplitude * intensity;
-        const coreSize = 30 + coreEnergy * 80;
+        const coreSize = 15 + coreEnergy * 40;
         const coreGradient = this.ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreSize);
-        coreGradient.addColorStop(0, `hsla(${(this.time * 90) % 360}, 100%, 95%, 1)`);
-        coreGradient.addColorStop(0.4, `hsla(${(this.time * 90 + 40) % 360}, 100%, 70%, 0.6)`);
+        coreGradient.addColorStop(0, `hsla(${(this.time * 110) % 360}, 100%, 99%, 1)`);
+        coreGradient.addColorStop(0.3, `hsla(${(this.time * 110 + 25) % 360}, 100%, 80%, 0.7)`);
         coreGradient.addColorStop(1, 'transparent');
+
         this.ctx.fillStyle = coreGradient;
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY, coreSize, 0, Math.PI * 2);
