@@ -79,8 +79,8 @@ export class ThreeJSVisualizer {
 
             // Scene & Camera
             this.scene = new THREE.Scene();
-            this.camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-            this.camera.position.z = 6;
+            this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1500);
+            this.camera.position.z = 5;
 
             // Create dynamic gradient environment
             this.createEnvironment();
@@ -158,8 +158,8 @@ export class ThreeJSVisualizer {
     }
 
     createMercurySphere() {
-        // High-detail geometry for smooth deformation
-        const geometry = new THREE.IcosahedronGeometry(1.5, 64);
+        // High-detail geometry for smooth deformation - 20% BIGGER (1.5 -> 1.8)
+        const geometry = new THREE.IcosahedronGeometry(1.8, 64);
 
         // Store original positions for deformation
         const posAttr = geometry.attributes.position;
@@ -187,8 +187,8 @@ export class ThreeJSVisualizer {
         this.mercuryMesh = new THREE.Mesh(geometry, material);
         this.scene.add(this.mercuryMesh);
 
-        // Add inner glow sphere
-        const glowGeo = new THREE.SphereGeometry(1.48, 32, 32);
+        // Add inner glow sphere - Scaled proportionally
+        const glowGeo = new THREE.SphereGeometry(1.78, 32, 32);
         const glowMat = new THREE.MeshBasicMaterial({
             color: 0x4466ff,
             transparent: true,
@@ -201,7 +201,7 @@ export class ThreeJSVisualizer {
 
     createDrops() {
         for (let i = 0; i < 8; i++) {
-            const size = 0.1 + Math.random() * 0.15;
+            const size = (0.1 + Math.random() * 0.15) * 1.2; // 20% Bigger drops
             const dropGeo = new THREE.IcosahedronGeometry(size, 16);
 
             // Store original positions for each drop
@@ -227,7 +227,7 @@ export class ThreeJSVisualizer {
                 mesh: drop,
                 originalPositions: originalPos,
                 angle: (i / 8) * Math.PI * 2,
-                radius: 2.2 + Math.random() * 0.8,
+                radius: 2.8 + Math.random() * 1.0, // Moved further out for bigger main orb
                 speed: 0.3 + Math.random() * 0.4,
                 yOffset: (Math.random() - 0.5) * 2,
                 verticalSpeed: 0.5 + Math.random() * 0.5,
@@ -330,7 +330,8 @@ export class ThreeJSVisualizer {
             const isMercury = ['mercuryOrbs', 'liquidMetal', 'metallicNebula'].includes(mode);
             this.mercuryMesh.visible = isMercury;
             if (this.innerGlow) this.innerGlow.visible = isMercury;
-            this.drops.forEach(d => d.mesh.visible = isMercury);
+            // Only show drops for standard mercuryOrbs mode
+            this.drops.forEach(d => d.mesh.visible = (mode === 'mercuryOrbs'));
             this.lights.forEach(l => l.light.visible = isMercury);
 
             if (isMercury) {
@@ -342,14 +343,14 @@ export class ThreeJSVisualizer {
                 this.scene.background = new THREE.Color(0x000000);
 
                 switch (mode) {
-                    case 'liquidMetal':
-                        material.color.setHex(0xff9900);
-                        material.roughness = 0.1;
-                        material.metalness = 1.0;
-                        material.iridescence = 0.4;
-                        material.emissive.setHex(0x331100);
-                        this.scene.background = new THREE.Color(0x080400);
-                        if (this.innerGlow) this.innerGlow.material.color.setHex(0xffaa00);
+                    case 'liquidMetal': // BURNING LAVA THEME
+                        material.color.setHex(0x050100); // Almost black for cooled crust
+                        material.roughness = 0.8; // Rough volcanic surface
+                        material.metalness = 0.1;
+                        material.emissive.setHex(0xff2200); // Intense heat glow
+                        material.emissiveIntensity = 3.0;
+                        this.scene.background = new THREE.Color(0x020000);
+                        if (this.innerGlow) this.innerGlow.material.color.setHex(0xff4400);
                         break;
                     case 'metallicNebula':
                         material.color.setHex(0x4400ff);
@@ -415,10 +416,16 @@ export class ThreeJSVisualizer {
         } else {
             this.updateMercury(time, bassVal, midVal, highVal, ampVal);
 
-            // DAMPENED: Smoother camera movement for Mercury Orb
-            const cameraRadius = 6.5 + bassVal * 0.3; // Stays slightly further back and moves less
-            this.camera.position.x = Math.sin(time * 0.1) * 0.4;
-            this.camera.position.y = Math.cos(time * 0.08) * 0.2;
+            // DYNAMIC LAVA PULSE
+            if (this.mode === 'liquidMetal') {
+                const lavaPulse = 1.0 + Math.sin(time * 3) * 0.5 + bassVal * 1.5;
+                this.mercuryMesh.material.emissiveIntensity = lavaPulse;
+            }
+
+            // DAMPENED: Camera further back to keep all orbs and spikes in frame
+            const cameraRadius = 10.0 + bassVal * 1.5;
+            this.camera.position.x = Math.sin(time * 0.1) * 0.8;
+            this.camera.position.y = Math.cos(time * 0.08) * 0.4;
             this.camera.position.z = cameraRadius;
             this.camera.lookAt(0, 0, 0);
         }
@@ -456,7 +463,7 @@ export class ThreeJSVisualizer {
             const noise2 = this.noise3D(ox * 3 + time * (noiseSpeed * 2.6), oy * 3 + time * (noiseSpeed * 1.6), oz * 3, 2) * (noiseAmp * 0.5);
             const noise3 = this.noise3D(ox * 5 + time * (noiseSpeed * 5), oy * 5, oz * 5 + time, 1) * (noiseAmp * 0.3);
 
-            const audioMod = 1.0 + bassVal * 1.5 + midVal * 0.8 + highVal * 0.4;
+            const audioMod = 1.0 + bassVal * 0.576 + midVal * 0.288 + highVal * 0.192;
             const displacement = (noise1 + noise2 + noise3) * audioMod;
 
             const dist = Math.sqrt(ox * ox + oy * oy + oz * oz);
@@ -474,7 +481,8 @@ export class ThreeJSVisualizer {
         posAttr.needsUpdate = true;
         this.mercuryMesh.geometry.computeVertexNormals();
 
-        const bounceScale = 1.0 + this.beatDecay * 0.3 + bassVal * 0.15;
+        // DYNAMIC PULSING: Energy reduced by 20%
+        const bounceScale = 1.0 + (this.beatDecay * 0.4) + (bassVal * 0.32);
         this.mercuryMesh.scale.setScalar(bounceScale);
         if (this.mode === 'metallicNebula') this.mercuryMesh.scale.multiplyScalar(1.2);
         this.innerGlow.scale.setScalar(bounceScale * 0.98);
@@ -493,19 +501,20 @@ export class ThreeJSVisualizer {
             material.color.setHSL(hue, 0.7, 0.4);
             material.emissive.setHSL((hue + 0.5) % 1, 0.9, 0.15);
         } else if (this.mode === 'liquidMetal') {
-            // Stronger gold/copper reactive shift
-            const goldHue = 0.08 + ampVal * 0.05;
-            material.color.setHSL(goldHue, 0.9, 0.4 + ampVal * 0.2);
-            material.emissive.setHSL(goldHue, 1.0, 0.1 + bassVal * 0.2);
+            // BURNING LAVA: Deep reds and blacks with orange emissive pulses
+            const lavaRed = 0.0 + ampVal * 0.04; // Very low hue (red)
+            material.color.setHSL(lavaRed, 1.0, 0.1 + ampVal * 0.1);
+            // Emissive is the primary 'glow' of the lava
+            material.emissive.setHSL(0.04 + ampVal * 0.06, 1.0, 0.2 + bassVal * 0.5);
         } else {
             // Classic silver - keep it white but reactive to lights
             material.color.setHex(0xffffff);
             material.emissive.setHex(0x000000);
         }
 
-        this.innerGlow.material.opacity = 0.1 + this.beatDecay * 0.2 + bassVal * 0.1;
+        this.innerGlow.material.opacity = 0.15 + this.beatDecay * 0.25 + bassVal * 0.15;
         this.innerGlow.material.color.setHSL((time * 0.05) % 1, 0.8, 0.5);
-        if (this.mode === 'liquidMetal') this.innerGlow.material.color.setHex(0xffaa00);
+        if (this.mode === 'liquidMetal') this.innerGlow.material.color.setHex(0xff3300);
 
         this.updateLightsAndDrops(time, bassVal, midVal, highVal, ampVal);
     }
@@ -574,20 +583,27 @@ export class ThreeJSVisualizer {
         this.scene.add(this.tunnelGroup);
 
         this.tunnelPathPoints = [];
-        this.tunnelPointsCount = 80;
+        this.tunnelPointsCount = 100;
         for (let i = 0; i < this.tunnelPointsCount; i++) {
-            const t = i * 0.5;
-            this.tunnelPathPoints.push(new THREE.Vector3(Math.cos(t) * 5, Math.sin(t) * 5, -i * 8));
+            const z = -i * 10;
+            const timeScale = i * 0.1;
+            const x = Math.sin(timeScale * 0.8) * 20;
+            const y = Math.cos(timeScale * 0.7) * 20;
+            this.tunnelPathPoints.push(new THREE.Vector3(x, y, z));
         }
 
         this.tunnelCurve = new THREE.CatmullRomCurve3(this.tunnelPathPoints);
 
-        const geometry = new THREE.TubeGeometry(this.tunnelCurve, 80, 4, 12, false);
-        const material = new THREE.MeshBasicMaterial({
+        const geometry = new THREE.TubeGeometry(this.tunnelCurve, 120, 8, 16, false);
+        const material = new THREE.MeshPhongMaterial({
             color: 0x00ffff,
-            wireframe: true,
+            wireframe: true, // REVERTED to wireframe for better "lines"
             transparent: true,
-            opacity: 0.4
+            opacity: 0.6, // Higher opacity for lines to be distinct
+            side: THREE.DoubleSide,
+            emissive: 0x00ffff, // Bright glow for the lines
+            emissiveIntensity: 1.0,
+            shininess: 100
         });
 
         this.tunnelMesh = new THREE.Mesh(geometry, material);
@@ -598,20 +614,19 @@ export class ThreeJSVisualizer {
     }
 
     createTunnelParticles() {
-        const particleCount = 2000;
+        const particleCount = 4000;
         const particlesGeo = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
 
         for (let i = 0; i < particleCount; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const r = 2 + Math.random() * 20;
-            positions[i * 3] = Math.cos(angle) * r;
-            positions[i * 3 + 1] = Math.sin(angle) * r;
-            positions[i * 3 + 2] = -Math.random() * 500;
+            positions[i * 3 + 2] = -Math.random() * 1000;
+            const spread = 200;
+            positions[i * 3] = (Math.random() - 0.5) * spread;
+            positions[i * 3 + 1] = (Math.random() - 0.5) * spread;
 
-            colors[i * 3] = 0.5 + Math.random() * 0.5;
-            colors[i * 3 + 1] = 0.5 + Math.random() * 0.5;
+            colors[i * 3] = 1.0;
+            colors[i * 3 + 1] = 1.0;
             colors[i * 3 + 2] = 1.0;
         }
 
@@ -619,11 +634,12 @@ export class ThreeJSVisualizer {
         particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         const particlesMat = new THREE.PointsMaterial({
-            vertexColors: true,
-            size: 0.8,
+            vertexColors: false,
+            size: 2.5,
             transparent: true,
-            opacity: 0.8,
-            blending: THREE.AdditiveBlending
+            opacity: 0.45, // Sustained 45% transparency requirement
+            blending: THREE.AdditiveBlending,
+            color: 0xffffff
         });
 
         this.tunnelParticles = new THREE.Points(particlesGeo, particlesMat);
@@ -636,61 +652,94 @@ export class ThreeJSVisualizer {
             return;
         }
 
-        const speed = 1.5 + bass * 1.5 + amp * 2.0;
-        const forwardSpeed = speed;
+        if (!this.smoothTunnelValues) {
+            this.smoothTunnelValues = { bass: 0, amp: 0, speed: 0.8 };
+        }
+        this.smoothTunnelValues.bass += (bass - this.smoothTunnelValues.bass) * 0.15;
+        this.smoothTunnelValues.amp += (amp - this.smoothTunnelValues.amp) * 0.15;
+
+        const sBass = this.smoothTunnelValues.bass;
+        const sAmp = this.smoothTunnelValues.amp;
+        const isBeat = bass > 0.75 || amp > 0.65;
+
+        const baseSpeed = 0.5;
+        const targetSpeed = baseSpeed + (sBass * 0.8) + (sAmp * 1.0);
+        this.smoothTunnelValues.speed += (targetSpeed - this.smoothTunnelValues.speed) * 0.08;
+        const forwardSpeed = this.smoothTunnelValues.speed;
 
         for (let i = 0; i < this.tunnelPathPoints.length; i++) {
             this.tunnelPathPoints[i].z += forwardSpeed;
         }
 
-        if (this.tunnelPathPoints[this.tunnelPathPoints.length - 1].z > 10) {
-            const p = this.tunnelPathPoints.pop();
-            const firstP = this.tunnelPathPoints[0];
+        if (this.tunnelPathPoints[0].z > 20) {
+            const p = this.tunnelPathPoints.shift();
+            const lastP = this.tunnelPathPoints[this.tunnelPathPoints.length - 1];
+            p.z = lastP.z - 10;
 
-            p.z = firstP.z - 8;
+            const turnScale = 60 + (sAmp * 40);
+            // FIX: Use a cumulative offset so recycled points create a continuous curve
+            if (!this.tunnelTargetOffset) this.tunnelTargetOffset = 0;
+            this.tunnelTargetOffset += 0.15;
+            const pathTime = (time * 0.5) + this.tunnelTargetOffset;
 
-            const turnScale = 50 + amp * 30;
-            const t = time * 0.5;
-            p.x = Math.sin(t * 0.7) * turnScale + Math.cos(t * 1.1) * turnScale * 0.5;
-            p.y = Math.cos(t * 0.8) * turnScale + Math.sin(t * 1.3) * turnScale * 0.5;
+            p.x = Math.sin(pathTime * 0.8) * turnScale + Math.cos(pathTime * 1.3) * (turnScale * 0.5);
+            p.y = Math.cos(pathTime * 0.7) * turnScale + Math.sin(pathTime * 1.5) * (turnScale * 0.5);
 
-            this.tunnelPathPoints.unshift(p);
-
+            this.tunnelPathPoints.push(p);
             this.tunnelCurve.points = this.tunnelPathPoints;
-
             this.tunnelMesh.geometry.dispose();
 
-            const radius = 4 + bass * 5 + Math.sin(time * 2) * 2;
-            this.tunnelMesh.geometry = new THREE.TubeGeometry(this.tunnelCurve, 80, radius, 12, false);
+            const baseRadius = 14 + sBass * 6;
+            const segments = 100;
+            const radialSegments = 12;
+            this.tunnelMesh.geometry = new THREE.TubeGeometry(this.tunnelCurve, segments, baseRadius, radialSegments, false);
         }
 
-        const camIndex = this.tunnelPathPoints.length - 3;
-        const lookIndex = this.tunnelPathPoints.length - 8;
+        const camTargetIndex = Math.floor(this.tunnelPathPoints.length * 0.04);
+        const lookTargetIndex = Math.floor(this.tunnelPathPoints.length * 0.2);
+        const camPoint = this.tunnelPathPoints[camTargetIndex];
+        const lookPoint = this.tunnelPathPoints[lookTargetIndex];
 
-        const camPos = this.tunnelPathPoints[camIndex];
-        const lookPos = this.tunnelPathPoints[lookIndex];
+        if (camPoint && lookPoint) {
+            this.camera.position.x += (camPoint.x - this.camera.position.x) * 0.08;
+            this.camera.position.y += (camPoint.y - this.camera.position.y) * 0.08;
+            this.camera.position.z = 15;
+            this.camera.lookAt(lookPoint.x, lookPoint.y, lookPoint.z);
+            this.camera.rotation.z += Math.sin(time * 0.1) * 0.0005;
+        }
 
-        this.camera.position.x += (camPos.x - this.camera.position.x) * 0.1;
-        this.camera.position.y += (camPos.y - this.camera.position.y) * 0.1;
-        this.camera.position.z = 0;
+        const hue = (time * 0.1) % 1;
+        this.tunnelMesh.material.color.setHSL(hue, 1.0, 0.6);
+        this.tunnelMesh.material.emissive.setHSL(hue, 1.0, 0.5);
+        this.tunnelMesh.material.opacity = 0.5 + sAmp * 0.3;
 
-        this.camera.lookAt(lookPos.x, lookPos.y, -100);
+        if (this.tunnelParticles) {
+            const particleHue = (hue + 0.33) % 1;
 
-        const hue = (time * 0.1 + bass * 0.2) % 1;
-        this.tunnelMesh.material.color.setHSL(hue, 1, 0.5);
-        this.tunnelMesh.material.opacity = 0.3 + amp * 0.4;
+            // Pulse color and brightness on beat
+            const l = isBeat ? 0.9 : 0.6;
+            const s = isBeat ? 1.0 : 0.7;
+            this.tunnelParticles.material.color.setHSL(particleHue, s, l);
 
-        const positions = this.tunnelParticles.geometry.attributes.position.array;
-        for (let i = 2; i < positions.length; i += 3) {
-            positions[i] += forwardSpeed * 1.5;
-            if (positions[i] > 10) {
-                positions[i] = -500 - Math.random() * 100;
-                positions[i - 2] = (Math.random() - 0.5) * 100;
-                positions[i - 1] = (Math.random() - 0.5) * 100;
+            // Fixed base transparency at 45%
+            this.tunnelParticles.material.opacity = isBeat ? 0.6 : 0.45;
+
+            const positions = this.tunnelParticles.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length / 3; i++) {
+                const idx = i * 3;
+                positions[idx + 2] += forwardSpeed * 1.8;
+
+                if (positions[idx + 2] > 20) {
+                    positions[idx + 2] = -980 - Math.random() * 20;
+                    const spread = 300;
+                    positions[idx] = (Math.random() - 0.5) * spread;
+                    positions[idx + 1] = (Math.random() - 0.5) * spread;
+                }
             }
+            this.tunnelParticles.geometry.attributes.position.needsUpdate = true;
+            this.tunnelParticles.rotation.z += 0.001 + sBass * 0.003;
+            this.tunnelParticles.material.size = 2.0 + (isBeat ? 3.0 : 0.0);
         }
-        this.tunnelParticles.geometry.attributes.position.needsUpdate = true;
-        this.tunnelParticles.rotation.z += 0.002;
     }
 
     destroy() {
