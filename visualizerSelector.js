@@ -15,7 +15,7 @@ export class VisualizerSelector {
         this.targetTimePerVisualizer = 8000; // Increased to 8s for stability
         this.switchCount = 0;
 
-        // All available visualizers (classic + 3D + fluid visualizers)
+        // All available visualizers (classic + 3D + fluid + enhanced)
         this.allVisualizers = [
             // Classic mesh visualizers
             'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
@@ -24,7 +24,10 @@ export class VisualizerSelector {
             // 3D camera visualizers
             'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
             // Premium Fluid & 3D visualizers
-            'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'tunnel'
+            'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel',
+            // Enhanced GPU Visualizers
+            'shader_psychedelicWaves', 'shader_neonVortex',
+            'gpuParticles'
         ];
 
         // Shuffle initially for unique session experience
@@ -56,11 +59,11 @@ export class VisualizerSelector {
 
         // Check for beat detection - switch early on beats (but enforce min 3s)
         const hasBeat = metadata?.rhythm?.beat;
-        const canSwitchOnBeat = hasBeat && timeSinceLastSwitch > 3000;
+        const canSwitchOnBeat = hasBeat && timeSinceLastSwitch > 4000;
 
         if (shouldSwitchByTime || canSwitchOnBeat) {
             // Move to next visualizer in cycle
-            this.currentIndex = (this.currentIndex + 1);
+            this.currentIndex++;
 
             // Reshuffle if we hit the end
             if (this.currentIndex >= this.allVisualizers.length) {
@@ -89,7 +92,7 @@ export class VisualizerSelector {
         const recentAmplitudes = this.stabilityHistory.slice(-5).map(h => h.amplitude);
         const avgAmplitude = recentAmplitudes.reduce((a, b) => a + b, 0) / recentAmplitudes.length;
 
-        return avgAmplitude < this.quietMomentThreshold;
+        return avgAmplitude < 0.05;
     }
 
     /**
@@ -136,7 +139,21 @@ export class VisualizerSelector {
             // Premium Mercury/Fluid visualizers
             mercuryOrbs: '💿 True Mercury - liquid metal orb with chromatic reflections',
             liquidMetal: '🔮 Liquid Metal - flowing metallic surface simulation',
-            metallicNebula: '🌌 Chromium Nebula - cosmic metallic particles'
+            metallicNebula: '🌌 Chromium Nebula - cosmic metallic particles',
+            liquidGeometry: '💎 Liquid Geometry - high-frequency geometric chrome deformation',
+            shader_neonVortex: '🌀 Neon Vortex - psychedelic tunnel of light',
+            shader_psychedelicWaves: '🌈 Psychedelic Waves - GPU-accelerated fluid patterns',
+            gpuParticles: '✨ GPU Particles (50K) - ultra responsive particle system',
+            // Enhanced GPU Visualizers
+            'shader_psychedelicWaves': '🌈 Psychedelic Waves - GPU-accelerated fluid patterns',
+            'shader_kaleidoscope': '💎 GPU Kaleidoscope - infinite shimmering mirrors',
+            'shader_hypnoticSpiral': '🌀 Hypnotic Spiral - deep geometric trance',
+            'shader_electricStorm': '⚡ Electric Storm - high-voltage plasma discharge',
+            'shader_sacredGeometry': '📐 Sacred Geometry - mathematical pulse patterns',
+            'gpuParticles': '✨ GPU Particles - 50,000 sentient audio-reactive lights',
+            'layered_psychedelicStack': '📚 Psychedelic Stack - multi-layered GPU masterwork',
+            'layered_cosmicDream': '🌠 Cosmic Dream - ethereal space-time visualization',
+            'layered_electricVoid': '🖤 Electric Void - dark high-energy particle emission'
         };
 
         return reasons[visualizer] || 'Unknown visualizer';

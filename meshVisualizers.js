@@ -303,33 +303,8 @@ export class MeshVisualizers {
             }
         }
 
-        // Draw mesh lines for definition
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        this.ctx.lineWidth = 0.5;
-        for (let y = 0; y <= rows; y++) {
-            this.ctx.beginPath();
-            for (let x = 0; x <= cols; x++) {
-                const p = mesh[y][x];
-                if (x === 0) {
-                    this.ctx.moveTo(p.x, p.y);
-                } else {
-                    this.ctx.lineTo(p.x, p.y);
-                }
-            }
-            this.ctx.stroke();
-        }
-        for (let x = 0; x <= cols; x++) {
-            this.ctx.beginPath();
-            for (let y = 0; y <= rows; y++) {
-                const p = mesh[y][x];
-                if (y === 0) {
-                    this.ctx.moveTo(p.x, p.y);
-                } else {
-                    this.ctx.lineTo(p.x, p.y);
-                }
-            }
-            this.ctx.stroke();
-        }
+        // REMOVED: Mesh lines loop. 
+        // We want pure abstract forms, not wireframes.
     }
 
     drawFilledTriangle(p1, p2, p3, hue, saturation, lightness, alpha) {
@@ -339,9 +314,10 @@ export class MeshVisualizers {
             p3.x, p3.y
         );
 
-        gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha})`);
-        gradient.addColorStop(0.5, `hsla(${hue + 30}, ${saturation}%, ${lightness + 10}%, ${alpha * 0.8})`);
-        gradient.addColorStop(1, `hsla(${hue + 60}, ${saturation}%, ${lightness}%, ${alpha * 0.6})`);
+        // More vibrant alpha and gradients
+        gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha * 1.2})`);
+        gradient.addColorStop(0.5, `hsla(${hue + 30}, ${saturation}%, ${lightness + 20}%, ${alpha * 0.9})`);
+        gradient.addColorStop(1, `hsla(${hue + 60}, ${saturation}%, ${lightness}%, ${alpha * 0.4})`);
 
         this.ctx.fillStyle = gradient;
         this.ctx.beginPath();
@@ -460,14 +436,16 @@ export class MeshVisualizers {
      */
     deformWaveMesh(mesh, audioData, metadata) {
         const { timeData, bufferLength } = audioData;
-        const amplitude = metadata.amplitude * 100;
+        // BOOSTED: Significantly more responsive
+        const amplitude = metadata.amplitude * 250;
+        const bass = (metadata.energyBands?.bass || 0) * 100;
 
         for (let y = 0; y < mesh.length; y++) {
             for (let x = 0; x < mesh[y].length; x++) {
                 const point = mesh[y][x];
                 const dataIndex = Math.floor((x / mesh[y].length) * bufferLength);
                 const wave = (timeData[dataIndex] / 128.0 - 1) * amplitude;
-                const wave2 = Math.sin((point.baseX / this.width) * Math.PI * 4 + this.time * 2) * amplitude * 0.5;
+                const wave2 = Math.sin((point.baseX / this.width) * Math.PI * 4 + this.time * 2) * (amplitude * 0.5 + bass * 0.2);
 
                 // Random disturbances for more organic feel
                 const randomDisturbance = Math.random() < 0.1
@@ -521,7 +499,8 @@ export class MeshVisualizers {
         const { frequencyData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const amplitude = metadata.amplitude * 200;
+        // BOOSTED: Massive amplitude for tornado
+        const amplitude = metadata.amplitude * 350;
 
         for (let y = 0; y < mesh.length; y++) {
             for (let x = 0; x < mesh[y].length; x++) {
@@ -585,7 +564,8 @@ export class MeshVisualizers {
      */
     deformFlowingMesh(mesh, audioData, metadata) {
         const { timeData, frequencyData, bufferLength } = audioData;
-        const amplitude = metadata.amplitude * 120;
+        // BOOSTED: Much more fluid motion
+        const amplitude = metadata.amplitude * 220;
 
         for (let y = 0; y < mesh.length; y++) {
             for (let x = 0; x < mesh[y].length; x++) {
@@ -593,10 +573,10 @@ export class MeshVisualizers {
                 const freqIndex = Math.floor((x / mesh[y].length) * bufferLength);
                 const energy = frequencyData[freqIndex] / 255;
 
-                // Multiple wave layers for flowing effect
-                const wave1 = Math.sin((point.baseX / this.width) * Math.PI * 6 + this.time * 2) * amplitude;
-                const wave2 = Math.sin((point.baseY / this.height) * Math.PI * 4 + this.time * 1.5) * amplitude * 0.7;
-                const wave3 = (timeData[freqIndex] / 128.0 - 1) * amplitude * energy;
+                // Multiple wave layers with extra frequency energy injection
+                const wave1 = Math.sin((point.baseX / this.width) * Math.PI * 6 + this.time * 2) * (amplitude * (1 + energy));
+                const wave2 = Math.sin((point.baseY / this.height) * Math.PI * 4 + this.time * 1.5) * amplitude * 0.8;
+                const wave3 = (timeData[freqIndex] / 128.0 - 1) * amplitude * energy * 2.0;
 
                 point.x = point.baseX + wave2 * 0.3;
                 point.y = point.baseY + wave1 + wave3;
@@ -1450,32 +1430,32 @@ export class MeshVisualizers {
      */
     renderDoubleSpiral(audioData, metadata) {
         if (!this._notifiedSpiral1) {
-            console.log("ANTIGRAVITY: Rendering 64-arm Hyper-Vortex (Spiral 1)");
+            console.log("ANTIGRAVITY: Hyper-Vortex 64 (Spiral 1) ACTIVATED");
             this._notifiedSpiral1 = true;
         }
 
         const { frequencyData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const maxRadius = Math.min(this.width, this.height) * 0.85;
+        const maxRadius = Math.min(this.width, this.height) * 0.9;
         const bass = metadata.energyBands?.bass / 100 || 0;
         const amp = metadata.amplitude || 0;
         const isBeat = metadata.rhythm?.beat;
 
-        // Clear with a stronger trailing effect for this mode
-        this.ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        // Clear with a stronger trailing effect
+        this.ctx.fillStyle = 'rgba(0,0,0,0.18)';
         this.ctx.fillRect(0, 0, this.width, this.height);
 
         // 1. DYNAMIC NEBULA FIELD
-        const particleCount = 100;
+        const particleCount = 120;
         this.ctx.save();
         this.ctx.globalCompositeOperation = 'screen';
         for (let i = 0; i < particleCount; i++) {
             const t = (this.time * 0.4 + i * 0.01) % 1;
             const angle = i * 2.4 + this.time * 0.5;
-            const radius = t * maxRadius * 1.8;
-            const size = (1 - t) * (4 + amp * 12);
-            this.ctx.fillStyle = `hsla(${(this.time * 40 + i * 3) % 360}, 100%, 70%, ${(1 - t) * 0.3})`;
+            const radius = t * maxRadius * 2.0;
+            const size = (1 - t) * (4 + amp * 15);
+            this.ctx.fillStyle = `hsla(${(this.time * 40 + i * 3) % 360}, 100%, 70%, ${(1 - t) * 0.4})`;
             this.ctx.beginPath();
             this.ctx.arc(centerX + Math.cos(angle) * radius, centerY + Math.sin(angle) * radius, size, 0, Math.PI * 2);
             this.ctx.fill();
@@ -1484,32 +1464,32 @@ export class MeshVisualizers {
 
         // 2. THE 64-ARM MONSTER VORTEX
         const armCount = 64;
-        const pointsPerArm = 60;
+        const pointsPerArm = 65;
 
         this.ctx.save();
         for (let arm = 0; arm < armCount; arm++) {
             const armAngle = (arm / armCount) * Math.PI * 2;
-            const layer = arm % 4; // 4 layers of rotation speed
+            const layer = arm % 4;
             const direction = (layer % 2 === 0) ? 1 : -1;
-            const speed = (0.5 + layer * 0.6) * direction;
+            const speed = (0.6 + layer * 0.7) * direction;
 
             this.ctx.beginPath();
-            this.ctx.lineWidth = 1.0 + amp * (6 - layer);
+            this.ctx.lineWidth = 1.5 + amp * (8 - layer * 1.5);
 
-            const hue = (arm * (360 / armCount) + this.time * 60) % 360;
-            this.ctx.strokeStyle = `hsla(${hue}, 100%, ${60 + layer * 5}%, ${0.4 + amp * 0.6})`;
+            const hue = (arm * (360 / armCount) + this.time * 70) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 100%, ${60 + layer * 10}%, ${0.5 + amp * 0.5})`;
 
             for (let i = 0; i < pointsPerArm; i++) {
                 const t = i / pointsPerArm;
-                const freqIdx = Math.floor(t * bufferLength * 0.25);
+                const freqIdx = Math.floor(t * bufferLength * 0.2);
                 const energy = frequencyData[freqIdx] / 255;
 
                 const rotation = this.time * speed;
-                const twist = t * Math.PI * (10 + layer * 2);
-                const angle = armAngle + rotation + twist + (energy * 0.4);
+                const twist = t * Math.PI * (12 + layer * 3);
+                const angle = armAngle + rotation + twist + (energy * 0.5);
 
-                const r = t * maxRadius * (1.0 + energy * 0.3);
-                const wave = Math.sin(t * 10 - this.time * 8 + arm * 0.2) * (5 + energy * 30);
+                const r = t * maxRadius * (1.1 + energy * 0.35);
+                const wave = Math.sin(t * 12 - this.time * 10 + arm * 0.3) * (5 + energy * 40);
 
                 const x = centerX + Math.cos(angle) * (r + wave);
                 const y = centerY + Math.sin(angle) * (r + wave);
@@ -1517,19 +1497,20 @@ export class MeshVisualizers {
                 if (i === 0) this.ctx.moveTo(x, y);
                 else this.ctx.lineTo(x, y);
 
-                // Draw solid energy beads along every 10th arm for structure
-                if (arm % 10 === 0 && i % 15 === 0) {
+                if (arm % 16 === 0 && i % 20 === 0) {
                     this.ctx.save();
                     this.ctx.fillStyle = '#fff';
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.shadowColor = '#fff';
                     this.ctx.beginPath();
-                    this.ctx.arc(x, y, 2 + amp * 8, 0, Math.PI * 2);
+                    this.ctx.arc(x, y, 3 + amp * 12, 0, Math.PI * 2);
                     this.ctx.fill();
                     this.ctx.restore();
                 }
             }
 
             if (layer === 0) {
-                this.ctx.shadowBlur = 10 + amp * 20;
+                this.ctx.shadowBlur = 15 + amp * 25;
                 this.ctx.shadowColor = `hsla(${hue}, 100%, 50%, 0.8)`;
             }
             this.ctx.stroke();

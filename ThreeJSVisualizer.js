@@ -7,6 +7,10 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js';
+import { FilmShader } from 'three/addons/shaders/FilmShader.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 export class ThreeJSVisualizer {
@@ -33,6 +37,15 @@ export class ThreeJSVisualizer {
         this.beatDecay = 0;
         this.initialized = false;
         this.clock = new THREE.Clock();
+
+        // Cinematic Camera State
+        this.cameraState = {
+            mode: 'drift', // drift, orbit, intense
+            target: new THREE.Vector3(0, 0, 0),
+            position: new THREE.Vector3(0, 0, 15),
+            shake: 0
+        };
+        this.lastCutTime = 0;
     }
 
     initialize() {
@@ -94,6 +107,9 @@ export class ThreeJSVisualizer {
             // Create dynamic lights
             this.createLights();
 
+            // Create Volumetric "God Rays"
+            this.createGodRays(); // New Feature
+
             // Post-processing
             this.setupPostProcessing(width, height);
 
@@ -110,49 +126,52 @@ export class ThreeJSVisualizer {
     }
 
     createEnvironment() {
-        // Create a procedural HDR-like environment for reflections
-        const size = 512;
+        // "Dark Studio" - High contrast, minimal ambient, driven by softboxes
+        const size = 1024;
         const canvas = document.createElement('canvas');
         canvas.width = size;
         canvas.height = size;
         const ctx = canvas.getContext('2d');
 
-        // Create dynamic gradient background
-        const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-        gradient.addColorStop(0, '#1a0a30');
-        gradient.addColorStop(0.3, '#0a1a2a');
-        gradient.addColorStop(0.6, '#0f0f1a');
-        gradient.addColorStop(1, '#000005');
-        ctx.fillStyle = gradient;
+        // Pitch black background
+        ctx.fillStyle = '#000000';
         ctx.fillRect(0, 0, size, size);
 
-        // Add colored light spots for chromatic reflections
-        const lightSpots = [
-            { x: size * 0.2, y: size * 0.3, color: '#ff3388', radius: 100 },
-            { x: size * 0.8, y: size * 0.2, color: '#33ffaa', radius: 80 },
-            { x: size * 0.5, y: size * 0.8, color: '#3388ff', radius: 90 },
-            { x: size * 0.1, y: size * 0.7, color: '#ffaa33', radius: 70 },
-            { x: size * 0.9, y: size * 0.6, color: '#ff33ff', radius: 85 },
-            { x: size * 0.3, y: size * 0.9, color: '#33ffff', radius: 75 }
-        ];
+        // Softbox Top
+        const gradTop = ctx.createLinearGradient(0, 0, 0, size * 0.3);
+        gradTop.addColorStop(0, '#ffffff');
+        gradTop.addColorStop(1, '#000000');
+        ctx.fillStyle = gradTop;
+        ctx.fillRect(size * 0.3, 0, size * 0.4, size * 0.3);
 
-        lightSpots.forEach(spot => {
-            const spotGradient = ctx.createRadialGradient(spot.x, spot.y, 0, spot.x, spot.y, spot.radius);
-            spotGradient.addColorStop(0, spot.color);
-            spotGradient.addColorStop(1, 'transparent');
-            ctx.globalCompositeOperation = 'lighter';
-            ctx.fillStyle = spotGradient;
-            ctx.beginPath();
-            ctx.arc(spot.x, spot.y, spot.radius, 0, Math.PI * 2);
-            ctx.fill();
-        });
+        // Softbox Bottom (Cool Fill)
+        const gradBot = ctx.createLinearGradient(0, size, 0, size * 0.7);
+        gradBot.addColorStop(0, '#112233');
+        gradBot.addColorStop(1, '#000000');
+        ctx.fillStyle = gradBot;
+        ctx.fillRect(size * 0.2, size * 0.7, size * 0.6, size * 0.3);
 
-        // Create texture from canvas
+        // Rim Light Left (Warm)
+        const gradLeft = ctx.createLinearGradient(0, 0, size * 0.2, 0);
+        gradLeft.addColorStop(0, '#ffaa44');
+        gradLeft.addColorStop(1, '#000000');
+        ctx.fillStyle = gradLeft;
+        ctx.fillRect(0, size * 0.3, size * 0.2, size * 0.4);
+
+        // Rim Light Right (Cyan)
+        const gradRight = ctx.createLinearGradient(size, 0, size * 0.8, 0);
+        gradRight.addColorStop(0, '#00ffff');
+        gradRight.addColorStop(1, '#000000');
+        ctx.fillStyle = gradRight;
+        ctx.fillRect(size * 0.8, size * 0.2, size * 0.2, size * 0.6);
+
+        // Creates a texture we can use for environment mapping
         const texture = new THREE.CanvasTexture(canvas);
         texture.mapping = THREE.EquirectangularReflectionMapping;
         texture.colorSpace = THREE.SRGBColorSpace;
 
         this.scene.environment = texture;
+        // Keep background black for the "Void" look
         this.scene.background = new THREE.Color(0x000000);
         this.envMap = texture;
     }
@@ -275,19 +294,70 @@ export class ThreeJSVisualizer {
         this.scene.add(hemi);
     }
 
+    createGodRays() {
+        this.godRays = [];
+        const geometry = new THREE.ConeGeometry(4, 40, 32, 1, true); // Open ended cone
+        const material = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.05,
+            side: THREE.DoubleSide,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        for (let i = 0; i < 5; i++) {
+            const mesh = new THREE.Mesh(geometry, material.clone());
+            mesh.position.set(0, 0, 0);
+
+            // Random initial rotations
+            mesh.rotation.x = (Math.random() - 0.5) * 2;
+            mesh.rotation.z = (Math.random() - 0.5) * 2;
+            mesh.rotation.y = (Math.random() - 0.5) * 2;
+
+            mesh.userData = {
+                speedX: (Math.random() - 0.5) * 0.2,
+                speedZ: (Math.random() - 0.5) * 0.2,
+                baseOpacity: 0.03 + Math.random() * 0.04
+            };
+
+            this.scene.add(mesh);
+            this.godRays.push(mesh);
+        }
+    }
+
     setupPostProcessing(width, height) {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
 
-        // Enhanced bloom for that glowing liquid look
+        // 1. Unreal Bloom - The Neon Glow
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(width, height),
-            1.0,   // strength
-            0.5,   // radius
-            0.7    // threshold
+            1.5,   // Higher strength
+            0.8,   // Wide radius
+            0.6    // Threshold
         );
         this.composer.addPass(bloomPass);
         this.bloomPass = bloomPass;
+
+        // 2. RGB Shift - Chromatic Aberration (Lens Imperfection)
+        const rgbShiftPass = new ShaderPass(RGBShiftShader);
+        rgbShiftPass.uniforms['amount'].value = 0.002;
+        this.composer.addPass(rgbShiftPass);
+        this.rgbShiftPass = rgbShiftPass;
+
+        // 3. Film Grain - Cinematic Feel
+        const filmPass = new ShaderPass(FilmShader);
+        filmPass.uniforms['nIntensity'].value = 0.35;
+        filmPass.uniforms['sIntensity'].value = 0.15;
+        filmPass.uniforms['sCount'].value = 4096;
+        filmPass.uniforms['grayscale'].value = 0;
+        this.composer.addPass(filmPass);
+        this.filmPass = filmPass;
+
+        // 4. Output Pass - Color Correction
+        const outputPass = new OutputPass();
+        this.composer.addPass(outputPass);
     }
 
     resize() {
@@ -327,7 +397,7 @@ export class ThreeJSVisualizer {
 
         // Hide/Show logic
         if (this.mercuryMesh) {
-            const isMercury = ['mercuryOrbs', 'liquidMetal', 'metallicNebula'].includes(mode);
+            const isMercury = ['mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry'].includes(mode);
             this.mercuryMesh.visible = isMercury;
             if (this.innerGlow) this.innerGlow.visible = isMercury;
             // Only show drops for standard mercuryOrbs mode
@@ -361,6 +431,16 @@ export class ThreeJSVisualizer {
                         this.scene.background = new THREE.Color(0x020010);
                         if (this.innerGlow) this.innerGlow.material.color.setHex(0xaa00ff);
                         break;
+                    case 'liquidGeometry':
+                        material.color.setHex(0x00ffcc);
+                        material.metalness = 1.0;
+                        material.roughness = 0.05;
+                        material.emissive.setHex(0x002233);
+                        material.iridescence = 1.0;
+                        material.thickness = 5.0; // Thick glass/chrome feel
+                        this.scene.background = new THREE.Color(0x000508);
+                        if (this.innerGlow) this.innerGlow.material.color.setHex(0x00ffee);
+                        break;
                     case 'mercuryOrbs':
                     default:
                         material.color.setHex(0xffffff);
@@ -387,22 +467,29 @@ export class ThreeJSVisualizer {
 
         const delta = this.clock.getDelta();
         const metadata = audioAnalysis || {};
-        const bass = metadata.energyBands?.bass || 0;
-        const mid = metadata.energyBands?.mid || 0;
-        const high = metadata.energyBands?.high || 0;
+        const bands = metadata.energyBands || {};
+
+        // Use PEAKS for direct violence, AVG for smooth base
+        const subBass = bands.subBass?.peak || 0;
+        const bass = bands.bass?.peak || 0;
+        const mid = bands.mid?.avg || 0;
+        const high = bands.treble?.peak || 0;
         const amplitude = metadata.amplitude || 0;
         const beat = metadata.rhythm?.beat ? 1.0 : 0.0;
+        const transient = bands.subBass?.transient || 0;
 
-        this.uniforms.uBass.value += (bass - this.uniforms.uBass.value) * 0.2;
-        this.uniforms.uMid.value += (mid - this.uniforms.uMid.value) * 0.15;
-        this.uniforms.uHigh.value += (high - this.uniforms.uHigh.value) * 0.25;
-        this.uniforms.uAmplitude.value += (amplitude - this.uniforms.uAmplitude.value) * 0.15;
+        // Smoothed uniforms (faster response now)
+        this.uniforms.uBass.value += (subBass - this.uniforms.uBass.value) * 0.3;
+        this.uniforms.uMid.value += (mid - this.uniforms.uMid.value) * 0.2;
+        this.uniforms.uHigh.value += (high - this.uniforms.uHigh.value) * 0.4;
+        this.uniforms.uAmplitude.value += (amplitude - this.uniforms.uAmplitude.value) * 0.3;
         this.uniforms.uTime.value += delta;
 
-        if (beat > 0.5) {
+        // Peak/Beat decay tracking
+        if (beat > 0.5 || transient > 0.1) {
             this.beatDecay = 1.0;
         } else {
-            this.beatDecay *= 0.88;
+            this.beatDecay *= 0.85;
         }
 
         const time = this.uniforms.uTime.value;
@@ -413,30 +500,75 @@ export class ThreeJSVisualizer {
 
         if (this.mode === 'tunnel') {
             this.updateTunnel(time, bassVal, midVal, highVal, ampVal);
-        } else {
+        } else if (this.mercuryMesh) {
             this.updateMercury(time, bassVal, midVal, highVal, ampVal);
 
             // DYNAMIC LAVA PULSE
             if (this.mode === 'liquidMetal') {
-                const lavaPulse = 1.0 + Math.sin(time * 3) * 0.5 + bassVal * 1.5;
-                this.mercuryMesh.material.emissiveIntensity = lavaPulse;
+                const lavaPulse = 1.0 + Math.sin(time * 3) * 0.5 + bassVal * 5.0; // Boosted
+                if (this.mercuryMesh.material) this.mercuryMesh.material.emissiveIntensity = lavaPulse;
             }
 
-            // DAMPENED: Camera further back to keep all orbs and spikes in frame
-            const cameraRadius = 10.0 + bassVal * 1.5;
-            this.camera.position.x = Math.sin(time * 0.1) * 0.8;
-            this.camera.position.y = Math.cos(time * 0.08) * 0.4;
-            this.camera.position.z = cameraRadius;
-            this.camera.lookAt(0, 0, 0);
+            // Update God Rays
+            this.updateGodRays(time, bassVal, midVal, highVal, ampVal);
+
+            // Cinematic Auto-Camera
+            this.updateCameraSystem(time, bassVal, midVal, highVal, beat);
         }
 
+        // --- POST PROCESSING UPDATES ---
         if (this.bloomPass) {
-            this.bloomPass.strength = 0.8 + this.beatDecay * 0.5 + ampVal * 0.3;
+            this.bloomPass.strength = 1.0 + this.beatDecay * 0.8 + ampVal * 0.5;
+        }
+
+        if (this.rgbShiftPass) {
+            // Clean, tight aberration only on strong beats
+            const shift = beat > 0.8 ? 0.005 : 0.001;
+            this.rgbShiftPass.uniforms['amount'].value = THREE.MathUtils.lerp(this.rgbShiftPass.uniforms['amount'].value, shift, 0.2);
+        }
+
+        if (this.filmPass) {
+            this.filmPass.uniforms['time'].value = time;
+            // Reduce grain for cleaner look
+            this.filmPass.uniforms['nIntensity'].value = 0.15;
+            this.filmPass.uniforms['sIntensity'].value = 0.05;
         }
 
         this.composer.render();
     }
 
+    updateCameraSystem(time, bass, mid, high, beat) {
+        // RADICAL: Cinematic Impulse Camera
+        const orbitRadius = 14 + Math.sin(time * 0.15) * 4;
+        const orbitSpeed = time * 0.22;
+
+        // Massive kick on beats/transients using beatDecay
+        const impulse = this.beatDecay * 2.5 + bass * 0.8;
+        this.camera.fov = 60 + impulse * 35.0; // Extreme FOV zoom
+        this.camera.updateProjectionMatrix();
+
+        const x = Math.sin(orbitSpeed) * orbitRadius;
+        const z = Math.cos(orbitSpeed) * orbitRadius;
+        const y = Math.sin(time * 0.2) * 5.0;
+
+        const targetPos = new THREE.Vector3(x, y, z);
+
+        // Add random "glitch" jitter on high frequencies
+        if (high > 0.8) {
+            targetPos.x += (Math.random() - 0.5) * high * 4.0;
+            targetPos.y += (Math.random() - 0.5) * high * 4.0;
+        }
+
+        this.camera.position.lerp(targetPos, 0.2);
+
+        // Dynamic lookAt with impulse offset
+        const lookTarget = new THREE.Vector3(
+            (Math.random() - 0.5) * impulse * 5.0,
+            (Math.random() - 0.5) * impulse * 5.0,
+            (Math.random() - 0.5) * impulse * 5.0
+        );
+        this.camera.lookAt(lookTarget);
+    }
     updateMercury(time, bassVal, midVal, highVal, ampVal) {
         if (!this.mercuryMesh) return;
 
@@ -451,6 +583,9 @@ export class ThreeJSVisualizer {
         } else if (this.mode === 'metallicNebula') {
             noiseSpeed = 0.2;
             noiseAmp = 0.15;
+        } else if (this.mode === 'liquidGeometry') {
+            noiseSpeed = 0.8; // Fast, mechanical
+            noiseAmp = 0.25;  // More aggressive
         }
 
         for (let i = 0; i < posAttr.count; i++) {
@@ -460,29 +595,29 @@ export class ThreeJSVisualizer {
             const oz = this.originalPositions[idx + 2];
 
             const noise1 = this.noise3D(ox * 1.5 + time * noiseSpeed, oy * 1.5, oz * 1.5, 3) * noiseAmp;
-            const noise2 = this.noise3D(ox * 3 + time * (noiseSpeed * 2.6), oy * 3 + time * (noiseSpeed * 1.6), oz * 3, 2) * (noiseAmp * 0.5);
-            const noise3 = this.noise3D(ox * 5 + time * (noiseSpeed * 5), oy * 5, oz * 5 + time, 1) * (noiseAmp * 0.3);
+            // BOOSTED: Reactivity to High Frequencies (Normalized Peak)
+            const highFreqNoise = this.noise3D(ox * 9 + time * 3, oy * 9, oz * 9, 1) * (highVal * 6.0);
 
-            const audioMod = 1.0 + bassVal * 0.576 + midVal * 0.288 + highVal * 0.192;
-            const displacement = (noise1 + noise2 + noise3) * audioMod;
-
-            const dist = Math.sqrt(ox * ox + oy * oy + oz * oz);
-            const beatPulse = Math.sin(dist * 8 - time * 15) * this.beatDecay * 0.08;
+            // MASSIVE: Audio modulation on position
+            const audioMod = 1.0 + (this.beatDecay * 2.5) + (bassVal * 7.5);
 
             const len = Math.sqrt(ox * ox + oy * oy + oz * oz);
             const nx = ox / len;
             const ny = oy / len;
             const nz = oz / len;
 
-            posAttr.array[idx] = ox + nx * (displacement + beatPulse);
-            posAttr.array[idx + 1] = oy + ny * (displacement + beatPulse);
-            posAttr.array[idx + 2] = oz + nz * (displacement + beatPulse);
+            // Combined noise function with extreme audio influence
+            const totalDistortion = noise1 + highFreqNoise;
+
+            posAttr.array[idx] = ox + nx * totalDistortion * audioMod;
+            posAttr.array[idx + 1] = oy + ny * totalDistortion * audioMod;
+            posAttr.array[idx + 2] = oz + nz * totalDistortion * audioMod;
         }
         posAttr.needsUpdate = true;
         this.mercuryMesh.geometry.computeVertexNormals();
 
-        // DYNAMIC PULSING: Energy reduced by 20%
-        const bounceScale = 1.0 + (this.beatDecay * 0.4) + (bassVal * 0.32);
+        // DYNAMIC PULSING: Violent scale bounce
+        const bounceScale = 1.0 + (this.beatDecay * 1.8) + (bassVal * 3.5);
         this.mercuryMesh.scale.setScalar(bounceScale);
         if (this.mode === 'metallicNebula') this.mercuryMesh.scale.multiplyScalar(1.2);
         this.innerGlow.scale.setScalar(bounceScale * 0.98);
@@ -495,6 +630,10 @@ export class ThreeJSVisualizer {
         const material = this.mercuryMesh.material;
         material.iridescence = 0.5 + ampVal * 0.5;
         material.sheenColor.setHSL((time * 0.1 + highVal) % 1, 1, 0.5);
+
+        // Use frequency bands to alter material properties (Responsiveness++)
+        material.roughness = Math.max(0, 0.4 * highVal); // Shimmy with highs
+        material.metalness = 1.0 - (midVal * 0.3); // Soften with mids
 
         if (this.mode === 'metallicNebula') {
             const hue = (time * 0.03 + bassVal * 0.1) % 1;
@@ -539,18 +678,46 @@ export class ThreeJSVisualizer {
             item.light.color.setHSL(hue, 1.0, 0.5);
         });
 
+        // REACTIVE PHYSICS for Drops
         this.drops.forEach((drop, i) => {
-            // Orbit
+            // 1. Gravity & Orbit
             drop.angle += drop.speed * 0.015 * (1 + bassVal * 2);
-            const r = drop.radius + bassVal * 0.8 + Math.sin(time * 2 + i) * 0.3;
 
-            drop.mesh.position.x = Math.cos(drop.angle) * r;
-            drop.mesh.position.z = Math.sin(drop.angle) * r;
-            drop.mesh.position.y = Math.sin(time * drop.verticalSpeed + i * 1.5) * 0.8 + drop.yOffset;
+            // 2. Attraction to center (black hole effect)
+            const targetR = drop.radius * (1.0 - bassVal * 0.3) + 2.0;
+
+            // 3. Simple Physics collision/repulsion from each other
+            // (Simplified N^2 loop for small number of drops)
+            let forceX = 0, forceZ = 0;
+            const myPos = new THREE.Vector2(Math.cos(drop.angle) * drop.radius, Math.sin(drop.angle) * drop.radius);
+
+            // Repel from neighbors
+            this.drops.forEach((other, j) => {
+                if (i === j) return;
+                const otherPos = new THREE.Vector2(Math.cos(other.angle) * other.radius, Math.sin(other.angle) * other.radius);
+                const dist = myPos.distanceTo(otherPos);
+                if (dist < 2.0) { // Too close
+                    const push = myPos.clone().sub(otherPos).normalize().multiplyScalar(0.1);
+                    forceX += push.x;
+                    forceZ += push.y;
+                }
+            });
+
+            // 4. Update Position
+            let r = drop.radius + bassVal * 0.8 + Math.sin(time * 2 + i) * 0.3;
+            // Apply collision nudges (mapping back to polar is hard, just hack cartesian offset)
+            let x = Math.cos(drop.angle) * r + forceX * 5;
+            let z = Math.sin(drop.angle) * r + forceZ * 5;
+
+            drop.mesh.position.x = x;
+            drop.mesh.position.z = z;
+            // Bounce vertically on beat
+            drop.mesh.position.y = Math.sin(time * drop.verticalSpeed + i * 1.5) * 0.8 + drop.yOffset + (this.beatDecay * 0.5 * (i % 2 == 0 ? 1 : -1));
 
             const dropScale = 1 + this.beatDecay * 0.6 + bassVal * 0.3;
             drop.mesh.scale.setScalar(dropScale);
 
+            // Mesh Distortion (Metal Liquid effect)
             const dropPosAttr = drop.mesh.geometry.attributes.position;
             for (let j = 0; j < dropPosAttr.count; j++) {
                 const jdx = j * 3;
@@ -576,6 +743,69 @@ export class ThreeJSVisualizer {
         });
     }
 
+    updateGodRays(time, bass, mid, high, amp) {
+        if (!this.godRays) return;
+
+        this.godRays.forEach((mesh, i) => {
+            // Rotate slowly
+            mesh.rotation.x += mesh.userData.speedX * (1 + bass);
+            mesh.rotation.z += mesh.userData.speedZ * (1 + bass);
+
+            // Pulse opacity on bass
+            const targetOpacity = mesh.userData.baseOpacity * (1 + bass * 5.0 + amp * 2.0);
+            mesh.material.opacity += (targetOpacity - mesh.material.opacity) * 0.1;
+
+            // Scale length slightly on beat
+            const scaleY = 1 + bass * 0.5;
+            mesh.scale.set(1 + bass * 0.2, scaleY, 1 + bass * 0.2);
+
+            // Color shift based on high freqs for that "prism" look
+            const hue = (time * 0.1 + i * 0.2) % 1;
+            mesh.material.color.setHSL(hue, 0.5, 0.8);
+        });
+    }
+
+    createSoftParticleTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+        grad.addColorStop(0, 'rgba(255,255,255,1)');
+        grad.addColorStop(0.4, 'rgba(255,255,255,0.2)');
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 32, 32);
+        const texture = new THREE.CanvasTexture(canvas);
+        return texture;
+    }
+
+    createNoiseTexture() {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, size, size);
+
+        for (let i = 0; i < 5000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const r = Math.random() * 2 + 0.5;
+            const alpha = Math.random() * 0.3; // Low alpha for subtle noise
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        return texture;
+    }
+
     createTunnel() {
         if (this.tunnelGroup) return;
 
@@ -583,63 +813,97 @@ export class ThreeJSVisualizer {
         this.scene.add(this.tunnelGroup);
 
         this.tunnelPathPoints = [];
-        this.tunnelPointsCount = 100;
+        this.tunnelPointsCount = 120; // Smoother path
         for (let i = 0; i < this.tunnelPointsCount; i++) {
-            const z = -i * 10;
-            const timeScale = i * 0.1;
-            const x = Math.sin(timeScale * 0.8) * 20;
-            const y = Math.cos(timeScale * 0.7) * 20;
+            const z = -i * 8;
+            const timeScale = i * 0.05;
+            const x = Math.sin(timeScale * 0.8) * 15;
+            const y = Math.cos(timeScale * 0.7) * 15;
             this.tunnelPathPoints.push(new THREE.Vector3(x, y, z));
         }
 
         this.tunnelCurve = new THREE.CatmullRomCurve3(this.tunnelPathPoints);
 
-        const geometry = new THREE.TubeGeometry(this.tunnelCurve, 120, 8, 16, false);
-        const material = new THREE.MeshPhongMaterial({
-            color: 0x00ffff,
-            wireframe: true, // REVERTED to wireframe for better "lines"
+        // Abstract Plasma Material
+        // Uses transmission for a glass-like feel, plus noise map for organic texture
+        const noiseMap = this.createNoiseTexture();
+
+        this.tunnelMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x4400ff,
+            emissive: 0x220055,
+            emissiveIntensity: 0.8,
+            metalness: 0.8,
+            roughness: 0.3,
+            transmission: 0.2, // See-through glass effect
+            thickness: 2.5,
+            side: THREE.BackSide, // Render inside
+            map: noiseMap,
+            alphaMap: noiseMap,
             transparent: true,
-            opacity: 0.6, // Higher opacity for lines to be distinct
-            side: THREE.DoubleSide,
-            emissive: 0x00ffff, // Bright glow for the lines
-            emissiveIntensity: 1.0,
-            shininess: 100
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false // Allow particles behind to show
         });
 
-        this.tunnelMesh = new THREE.Mesh(geometry, material);
+        // Use more segments for smoother organic deformation
+        const geometry = new THREE.TubeGeometry(this.tunnelCurve, 100, 14, 24, false);
+        this.tunnelMesh = new THREE.Mesh(geometry, this.tunnelMaterial);
+
+        // Add a second outer mesh for "glow" volume
+        const outerGeo = new THREE.TubeGeometry(this.tunnelCurve, 100, 14.5, 24, false);
+        const outerMat = new THREE.MeshBasicMaterial({
+            color: 0x4400ff,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.BackSide,
+            blending: THREE.AdditiveBlending
+        });
+        this.tunnelOuterMesh = new THREE.Mesh(outerGeo, outerMat);
+
         this.tunnelGroup.add(this.tunnelMesh);
+        this.tunnelGroup.add(this.tunnelOuterMesh);
 
         this.createTunnelParticles();
         this.tunnelGroup.visible = true;
     }
 
     createTunnelParticles() {
-        const particleCount = 4000;
+        const particleCount = 2000;
         const particlesGeo = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
 
         for (let i = 0; i < particleCount; i++) {
-            positions[i * 3 + 2] = -Math.random() * 1000;
-            const spread = 200;
-            positions[i * 3] = (Math.random() - 0.5) * spread;
-            positions[i * 3 + 1] = (Math.random() - 0.5) * spread;
+            positions[i * 3 + 2] = -Math.random() * 800;
+            // distribute in a cylinder around camera path
+            const angle = Math.random() * Math.PI * 2;
+            const r = 4 + Math.random() * 25; // 4 to 29 radius
+            positions[i * 3] = Math.cos(angle) * r;
+            positions[i * 3 + 1] = Math.sin(angle) * r;
 
-            colors[i * 3] = 1.0;
-            colors[i * 3 + 1] = 1.0;
-            colors[i * 3 + 2] = 1.0;
+            colors[i * 3] = 0.5 + Math.random() * 0.5; // R
+            colors[i * 3 + 1] = 0.5 + Math.random() * 0.5; // G
+            colors[i * 3 + 2] = 1.0; // B - Blue tint
+
+            sizes[i] = Math.random();
         }
 
         particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        particlesGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1)); // We'll use this if we setup shader material, else just variance
+
+        // Use soft sprite
+        const particleTex = this.createSoftParticleTexture();
 
         const particlesMat = new THREE.PointsMaterial({
-            vertexColors: false,
-            size: 2.5,
+            vertexColors: true,
+            size: 3.5,
+            map: particleTex,
             transparent: true,
-            opacity: 0.45, // Sustained 45% transparency requirement
+            opacity: 0.8,
             blending: THREE.AdditiveBlending,
-            color: 0xffffff
+            depthWrite: false
         });
 
         this.tunnelParticles = new THREE.Points(particlesGeo, particlesMat);
@@ -652,94 +916,49 @@ export class ThreeJSVisualizer {
             return;
         }
 
-        if (!this.smoothTunnelValues) {
-            this.smoothTunnelValues = { bass: 0, amp: 0, speed: 0.8 };
-        }
-        this.smoothTunnelValues.bass += (bass - this.smoothTunnelValues.bass) * 0.15;
-        this.smoothTunnelValues.amp += (amp - this.smoothTunnelValues.amp) * 0.15;
+        if (!this.tunnelMaterial) return; // Guard
 
-        const sBass = this.smoothTunnelValues.bass;
-        const sAmp = this.smoothTunnelValues.amp;
-        const isBeat = bass > 0.75 || amp > 0.65;
+        // VIOLENT: Significantly increased speed multiplier based on BASS
+        const baseSpeed = 5.0;
+        const transient = this.uniforms.uBass.value > 0.7 ? 20.0 : 0.0;
+        const speed = baseSpeed + (bass * 80.0) + (mid * 35.0) + transient;
+        this.tunnelOffset -= speed * 0.06;
 
-        const baseSpeed = 0.5;
-        const targetSpeed = baseSpeed + (sBass * 0.8) + (sAmp * 1.0);
-        this.smoothTunnelValues.speed += (targetSpeed - this.smoothTunnelValues.speed) * 0.08;
-        const forwardSpeed = this.smoothTunnelValues.speed;
+        // Peak-driven camera shake
+        this.camera.position.x = Math.sin(time * 0.8) * (1 + bass * 15.0);
+        this.camera.position.y = Math.cos(time * 0.6) * (1 + bass * 15.0);
+        this.camera.lookAt(0, 0, -20);
 
-        for (let i = 0; i < this.tunnelPathPoints.length; i++) {
-            this.tunnelPathPoints[i].z += forwardSpeed;
-        }
+        // Rotate the whole group violently on transients
+        this.tunnelGroup.rotation.z += 0.008 + (bass * 0.45);
 
-        if (this.tunnelPathPoints[0].z > 20) {
-            const p = this.tunnelPathPoints.shift();
-            const lastP = this.tunnelPathPoints[this.tunnelPathPoints.length - 1];
-            p.z = lastP.z - 10;
-
-            const turnScale = 60 + (sAmp * 40);
-            // FIX: Use a cumulative offset so recycled points create a continuous curve
-            if (!this.tunnelTargetOffset) this.tunnelTargetOffset = 0;
-            this.tunnelTargetOffset += 0.15;
-            const pathTime = (time * 0.5) + this.tunnelTargetOffset;
-
-            p.x = Math.sin(pathTime * 0.8) * turnScale + Math.cos(pathTime * 1.3) * (turnScale * 0.5);
-            p.y = Math.cos(pathTime * 0.7) * turnScale + Math.sin(pathTime * 1.5) * (turnScale * 0.5);
-
-            this.tunnelPathPoints.push(p);
-            this.tunnelCurve.points = this.tunnelPathPoints;
-            this.tunnelMesh.geometry.dispose();
-
-            const baseRadius = 14 + sBass * 6;
-            const segments = 100;
-            const radialSegments = 12;
-            this.tunnelMesh.geometry = new THREE.TubeGeometry(this.tunnelCurve, segments, baseRadius, radialSegments, false);
+        // Texture offset for flow
+        if (this.tunnelMesh && this.tunnelMesh.material.map) {
+            this.tunnelMesh.material.map.offset.y = time * 0.8 + this.tunnelOffset;
+            this.tunnelMesh.material.map.offset.x = Math.sin(time * 0.2) * 0.5;
         }
 
-        const camTargetIndex = Math.floor(this.tunnelPathPoints.length * 0.04);
-        const lookTargetIndex = Math.floor(this.tunnelPathPoints.length * 0.2);
-        const camPoint = this.tunnelPathPoints[camTargetIndex];
-        const lookPoint = this.tunnelPathPoints[lookTargetIndex];
-
-        if (camPoint && lookPoint) {
-            this.camera.position.x += (camPoint.x - this.camera.position.x) * 0.08;
-            this.camera.position.y += (camPoint.y - this.camera.position.y) * 0.08;
-            this.camera.position.z = 15;
-            this.camera.lookAt(lookPoint.x, lookPoint.y, lookPoint.z);
-            this.camera.rotation.z += Math.sin(time * 0.1) * 0.0005;
-        }
-
-        const hue = (time * 0.1) % 1;
-        this.tunnelMesh.material.color.setHSL(hue, 1.0, 0.6);
-        this.tunnelMesh.material.emissive.setHSL(hue, 1.0, 0.5);
-        this.tunnelMesh.material.opacity = 0.5 + sAmp * 0.3;
-
+        // Update tunnel particles - Fly towards camera
         if (this.tunnelParticles) {
-            const particleHue = (hue + 0.33) % 1;
+            const positions = this.tunnelParticles.geometry.attributes.position;
+            const count = positions.count;
 
-            // Pulse color and brightness on beat
-            const l = isBeat ? 0.9 : 0.6;
-            const s = isBeat ? 1.0 : 0.7;
-            this.tunnelParticles.material.color.setHSL(particleHue, s, l);
+            for (let i = 0; i < count; i++) {
+                let z = positions.getZ(i);
+                z += speed * 0.2; // Fly towards camera
 
-            // Fixed base transparency at 45%
-            this.tunnelParticles.material.opacity = isBeat ? 0.6 : 0.45;
+                if (z > 10) z = -100; // Reset loop
 
-            const positions = this.tunnelParticles.geometry.attributes.position.array;
-            for (let i = 0; i < positions.length / 3; i++) {
-                const idx = i * 3;
-                positions[idx + 2] += forwardSpeed * 1.8;
-
-                if (positions[idx + 2] > 20) {
-                    positions[idx + 2] = -980 - Math.random() * 20;
-                    const spread = 300;
-                    positions[idx] = (Math.random() - 0.5) * spread;
-                    positions[idx + 1] = (Math.random() - 0.5) * spread;
-                }
+                positions.setZ(i, z);
             }
-            this.tunnelParticles.geometry.attributes.position.needsUpdate = true;
-            this.tunnelParticles.rotation.z += 0.001 + sBass * 0.003;
-            this.tunnelParticles.material.size = 2.0 + (isBeat ? 3.0 : 0.0);
+            positions.needsUpdate = true;
         }
+
+        // Pulse emission
+        this.tunnelMaterial.emissiveIntensity = 0.5 + amp * 3.0; // Strong flask on beat
+
+        // Return early to skip complex curve logic
+        return;
     }
 
     destroy() {

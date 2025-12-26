@@ -1,12 +1,20 @@
 /**
  * Visualizers Module (Integrated with MeshVisualizers, PremiumVisualizers, and FluidVisualizers)
- * Enhanced with Music Intelligence and Beat Effects
+ * Enhanced with Music Intelligence, Beat Effects, and NEW Premium Features
  */
 import { MeshVisualizers } from './meshVisualizers.js';
 import { PremiumVisualizers } from './premiumVisualizers.js';
 import { FluidVisualizers } from './fluidVisualizers.js';
 import { MusicIntelligence } from './musicIntelligence.js';
 import { BeatEffects } from './beatEffects.js';
+
+// NEW: Import enhanced visualizer modules
+import { ShaderVisualizers } from './shaderVisualizers.js';
+import { GPUParticleSystem } from './gpuParticles.js';
+import { AIPsychedelicArt } from './aiPsychedelicArt.js';
+import { ReactiveTypography } from './reactiveTypography.js';
+import { LayerBlendingSystem } from './layerBlending.js';
+import { ParameterControl } from './parameterControl.js';
 
 export class Visualizers {
     constructor(canvas, audioCapture, audioAnalyzer) {
@@ -36,16 +44,81 @@ export class Visualizers {
             '3DGeometryShapeshifter', 'hinduGodPsychedelic'
         ];
 
-        // Initialize FluidVisualizers (NEW - WebGL2 fluid simulation)
+        // Initialize FluidVisualizers (WebGL2 fluid simulation)
         this.fluidVisualizer = new FluidVisualizers(canvas, audioCapture, audioAnalyzer);
         this.fluidTypes = FluidVisualizers.getTypes();
 
-        // Initialize Music Intelligence (NEW - predictive audio analysis)
+        // Initialize Music Intelligence (predictive audio analysis)
         this.musicIntelligence = new MusicIntelligence(audioAnalyzer);
         this.intelligenceState = null;
 
-        // Initialize Beat Effects (NEW - spectacular beat-synced effects)
+        // Initialize Beat Effects (spectacular beat-synced effects)
         this.beatEffects = new BeatEffects(canvas);
+
+        // NEW: Initialize GPU Shader Visualizers
+        this.shaderCanvas = document.createElement('canvas');
+        this.shaderCanvas.width = canvas.width;
+        this.shaderCanvas.height = canvas.height;
+        try {
+            this.shaderVisualizer = new ShaderVisualizers(this.shaderCanvas);
+            this.shaderTypes = this.shaderVisualizer.getAvailableShaders();
+            console.log('✓ Shader visualizers initialized:', this.shaderTypes);
+        } catch (e) {
+            console.warn('Shader visualizers unavailable:', e);
+            this.shaderVisualizer = null;
+            this.shaderTypes = [];
+        }
+
+        // NEW: Initialize GPU Particle System
+        this.particleCanvas = document.createElement('canvas');
+        this.particleCanvas.width = canvas.width;
+        this.particleCanvas.height = canvas.height;
+        try {
+            this.gpuParticles = new GPUParticleSystem(this.particleCanvas);
+            console.log('✓ GPU particle system initialized');
+        } catch (e) {
+            console.warn('GPU particles unavailable:', e);
+            this.gpuParticles = null;
+        }
+
+        // NEW: Initialize AI Psychedelic Art
+        try {
+            this.aiArt = new AIPsychedelicArt(canvas);
+            console.log('✓ AI psychedelic art initialized');
+        } catch (e) {
+            console.warn('AI art unavailable:', e);
+            this.aiArt = null;
+        }
+
+        // NEW: Initialize Reactive Typography
+        try {
+            this.typography = new ReactiveTypography(canvas);
+            console.log('✓ Reactive typography initialized');
+        } catch (e) {
+            console.warn('Typography unavailable:', e);
+            this.typography = null;
+        }
+
+        // NEW: Initialize Layer Blending System
+        try {
+            this.layerBlending = new LayerBlendingSystem(canvas);
+            console.log('✓ Layer blending system initialized');
+        } catch (e) {
+            console.warn('Layer blending unavailable:', e);
+            this.layerBlending = null;
+        }
+
+        // NEW: Initialize Parameter Control
+        this.paramControl = new ParameterControl();
+        this.paramControl.load();
+
+        // NEW: Enhanced visualizer types
+        this.enhancedTypes = [
+            'shader_psychedelicWaves', 'shader_kaleidoscope', 'shader_hypnoticSpiral',
+            'shader_electricStorm', 'shader_sacredGeometry',
+            'gpuParticles', 'aiPsychedelicArt', 'reactiveTypography',
+            'layered_psychedelicStack', 'layered_cosmicDream', 'layered_electricVoid'
+        ];
 
         // Intelligent mode settings
         this.intelligentMode = true;
@@ -60,6 +133,9 @@ export class Visualizers {
             targetSpread: 1.0
         };
 
+        // Last frame time for delta calculation
+        this.lastFrameTime = performance.now();
+
         // Resize canvas
         this.resize();
         window.addEventListener('resize', () => this.resize());
@@ -72,6 +148,19 @@ export class Visualizers {
         this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
         this.width = rect.width;
         this.height = rect.height;
+
+        // Resize enhanced visualizer canvases
+        if (this.shaderCanvas) {
+            this.shaderCanvas.width = this.canvas.width;
+            this.shaderCanvas.height = this.canvas.height;
+        }
+        if (this.particleCanvas) {
+            this.particleCanvas.width = this.canvas.width;
+            this.particleCanvas.height = this.canvas.height;
+        }
+        if (this.aiArt?.resize) this.aiArt.resize();
+        if (this.typography?.resize) this.typography.resize();
+        if (this.layerBlending?.resize) this.layerBlending.resize();
     }
 
     setVisualizer(type) {
@@ -241,9 +330,51 @@ export class Visualizers {
             this.ctx.translate(-this.width / 2, -this.height / 2);
         }
 
+        // Calculate delta time for smooth animations
+        const now = performance.now();
+        const deltaTime = (now - this.lastFrameTime) / 1000;
+        this.lastFrameTime = now;
+
         // Delegate based on visualizer type
-        if (this.fluidTypes.includes(visualizerType)) {
-            // NEW: Fluid visualizers (WebGL2)
+        // NEW: Handle enhanced visualizers first
+        if (visualizerType.startsWith('shader_')) {
+            // GPU Shader visualizers
+            const shaderType = visualizerType.replace('shader_', '');
+            if (this.shaderVisualizer) {
+                this.shaderVisualizer.setShader(shaderType);
+                const params = this.paramControl.getParams(visualizerType);
+                this.shaderVisualizer.setParams(params);
+                this.shaderVisualizer.render(audioData, metadata, deltaTime);
+                this.ctx.drawImage(this.shaderCanvas, 0, 0, this.width, this.height);
+            }
+        } else if (visualizerType === 'gpuParticles') {
+            // GPU Particle system
+            if (this.gpuParticles) {
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, this.width, this.height);
+                const params = this.paramControl.getParams('gpuParticles');
+                this.gpuParticles.setParams(params);
+                this.gpuParticles.render(audioData, metadata, deltaTime);
+                this.ctx.drawImage(this.particleCanvas, 0, 0, this.width, this.height);
+            }
+        } else if (visualizerType === 'aiPsychedelicArt') {
+            // AI Psychedelic Art
+            if (this.aiArt) {
+                this.aiArt.render(audioData, metadata, deltaTime);
+            }
+        } else if (visualizerType === 'reactiveTypography') {
+            // Reactive Typography
+            if (this.typography) {
+                const params = this.paramControl.getParams('reactiveTypography');
+                this.typography.setParams(params);
+                this.typography.render(audioData, metadata, deltaTime);
+            }
+        } else if (visualizerType.startsWith('layered_')) {
+            // Layered presets
+            const presetName = visualizerType.replace('layered_', '');
+            this.renderLayeredPreset(presetName, audioData, metadata, deltaTime);
+        } else if (this.fluidTypes.includes(visualizerType)) {
+            // Fluid visualizers (WebGL2)
             this.fluidVisualizer.render(visualizerType, audioData, metadata);
         } else if (this.meshTypes.includes(visualizerType)) {
             // Mesh visualizers
@@ -274,6 +405,83 @@ export class Visualizers {
 
         // Render beat effects on top of everything
         this.beatEffects.render(this.ctx);
+    }
+
+    /**
+     * Render a layered preset combining multiple visualizers
+     */
+    renderLayeredPreset(presetName, audioData, metadata, deltaTime) {
+        const presets = {
+            psychedelicStack: [
+                { type: 'shader', shader: 'psychedelicWaves', blend: 'source-over', opacity: 1.0 },
+                { type: 'particles', blend: 'screen', opacity: 0.6 },
+                { type: 'typography', blend: 'overlay', opacity: 0.5 }
+            ],
+            cosmicDream: [
+                { type: 'shader', shader: 'hypnoticSpiral', blend: 'source-over', opacity: 1.0 },
+                { type: 'particles', blend: 'screen', opacity: 0.5 }
+            ],
+            electricVoid: [
+                { type: 'shader', shader: 'electricStorm', blend: 'source-over', opacity: 1.0 },
+                { type: 'particles', blend: 'screen', opacity: 0.7 }
+            ]
+        };
+
+        const layers = presets[presetName];
+        if (!layers) {
+            // Fallback
+            if (this.shaderVisualizer) {
+                this.shaderVisualizer.setShader('psychedelicWaves');
+                this.shaderVisualizer.render(audioData, metadata, deltaTime);
+                this.ctx.drawImage(this.shaderCanvas, 0, 0, this.width, this.height);
+            }
+            return;
+        }
+
+        // Clear canvas
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        // Render each layer
+        for (const layer of layers) {
+            this.ctx.save();
+            this.ctx.globalCompositeOperation = layer.blend;
+            this.ctx.globalAlpha = layer.opacity;
+
+            switch (layer.type) {
+                case 'shader':
+                    if (this.shaderVisualizer) {
+                        this.shaderVisualizer.setShader(layer.shader);
+                        this.shaderVisualizer.render(audioData, metadata, deltaTime);
+                        this.ctx.drawImage(this.shaderCanvas, 0, 0, this.width, this.height);
+                    }
+                    break;
+
+                case 'particles':
+                    if (this.gpuParticles) {
+                        // Clear particle canvas before rendering
+                        const pCtx = this.particleCanvas.getContext('2d');
+                        if (pCtx) pCtx.clearRect(0, 0, this.particleCanvas.width, this.particleCanvas.height);
+                        this.gpuParticles.render(audioData, metadata, deltaTime);
+                        this.ctx.drawImage(this.particleCanvas, 0, 0, this.width, this.height);
+                    }
+                    break;
+
+                case 'aiArt':
+                    if (this.aiArt) {
+                        this.aiArt.render(audioData, metadata, deltaTime);
+                    }
+                    break;
+
+                case 'typography':
+                    if (this.typography) {
+                        this.typography.render(audioData, metadata, deltaTime);
+                    }
+                    break;
+            }
+
+            this.ctx.restore();
+        }
     }
 
     renderMorphingTransition(audioData, metadata) {
