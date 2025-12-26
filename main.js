@@ -110,6 +110,23 @@ class VisualizerApp {
         document.addEventListener('msfullscreenchange', () => this.handleFullscreenChange());
 
         this.createExitButton();
+
+        // Micro-Interaction: 3D Tilt Effect
+        document.addEventListener('mousemove', (e) => {
+            if (!this.uiOverlay) return;
+
+            // Normalize coordinates -1 to 1
+            const x = (e.clientX / window.innerWidth) - 0.5;
+            const y = (e.clientY / window.innerHeight) - 0.5;
+
+            // Max tilt angle (degrees)
+            const strength = 10;
+            const tiltX = x * strength;
+            const tiltY = -y * strength; // Inverted Y for natural feel
+
+            this.uiOverlay.style.setProperty('--tilt-x', `${tiltX}deg`);
+            this.uiOverlay.style.setProperty('--tilt-y', `${tiltY}deg`);
+        });
     }
 
     createExitButton() {
@@ -201,56 +218,64 @@ class VisualizerApp {
 
     async start() {
         try {
-            // Show loading state
             this.startBtn.disabled = true;
             this.startBtn.textContent = 'Starting...';
 
-            // Initialize audio capture
             const sourceType = this.audioSourceSelect.value;
-            await this.audioCapture.start(sourceType);
 
-            // Initialize analyzer
-            this.audioAnalyzer = new AudioAnalyzer(this.audioCapture);
+            // Layer 1 logical flow: Attempt primary source
+            try {
+                await this.audioCapture.start(sourceType);
+            } catch (captureError) {
+                console.warn('[LogicalAnalyzer] Primary audio source failed:', captureError);
 
-            // Initialize main Visualizers manager (supports mesh + premium visualizers)
-            const { Visualizers } = await import('./visualizers.js');
-            this.visualizers = new Visualizers(
-                this.canvas,
-                this.audioCapture,
-                this.audioAnalyzer
-            );
-
-            // Set initial visualizer
-            if (this.autoModeCheckbox.checked) {
-                // Set a default classic visualizer, auto-selector will change it based on audio
-                this.visualizers.setVisualizer('tornado');
-            } else {
-                const selectedViz = this.visualizerSelect.value;
-                if (selectedViz !== 'auto') {
-                    this.visualizers.setVisualizer(selectedViz);
+                // Layer 3 Edge Case: Mic denied/unavailable -> Fallback to Demo Mode
+                if (confirm(`Audio Input Failed: ${captureError.message}\n\nSwitch to DEMO MODE with simulated audio?`)) {
+                    await this.audioCapture.start('demo');
+                    this.startBtn.textContent = 'Demo Mode';
                 } else {
-                    // Default to classic tornado
-                    this.visualizers.setVisualizer('tornado');
+                    throw captureError; // User cancelled
                 }
             }
 
+            // Layer 2 State Management: Initialize core systems only after audio is secured
+            if (!this.audioAnalyzer) {
+                this.audioAnalyzer = new AudioAnalyzer(this.audioCapture);
+            }
+
+            if (!this.visualizers) {
+                const { Visualizers } = await import('./visualizers.js');
+                this.visualizers = new Visualizers(
+                    this.canvas,
+                    this.audioCapture,
+                    this.audioAnalyzer
+                );
+            }
+
+            // Set initial visualizer
+            if (this.autoModeCheckbox.checked) {
+                this.visualizers.setVisualizer('tornado');
+            } else {
+                const selectedViz = this.visualizerSelect.value;
+                this.visualizers.setVisualizer(selectedViz === 'auto' ? 'tornado' : selectedViz);
+            }
+
             this.isRunning = true;
-
-            // Start animation loop immediately (even without audio)
             this.animate();
-
-            // UI stays visible - no auto-hide
-            // this.startUIHideTimer();
 
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
-            this.startBtn.textContent = 'Start';
+            // Only reset text if we didn't set it to 'Demo Mode' earlier
+            if (this.startBtn.textContent !== 'Demo Mode') {
+                this.startBtn.textContent = 'running...';
+            }
 
         } catch (error) {
-            console.error('Error starting visualizer:', error);
-            alert(`Error: ${error.message}\n\nPlease ensure you grant microphone permissions or select a tab/window for system audio.`);
+            console.error('Fatal Start Error:', error);
+            alert(`Could not start visualizer: ${error.message}`);
             this.startBtn.disabled = false;
             this.startBtn.textContent = 'Start';
+            this.stop(); // Ensure clean state
         }
     }
 
@@ -317,8 +342,12 @@ class VisualizerApp {
     updateInfoDisplay(metadata) {
         if (!metadata) return;
 
-        // Update current visualizer
-        const currentViz = this.visualizers?.currentVisualizer || 'None';
+        // Update current visualizer name (Clean up prefixes)
+        let currentViz = this.visualizers?.currentVisualizer || 'None';
+        currentViz = currentViz.replace('shader_', '').replace('layered_', '');
+
+        // Handle CamelCase -> Spaces
+        currentViz = currentViz.replace(/([A-Z])/g, ' $1').trim();
         this.currentVizSpan.textContent = currentViz.charAt(0).toUpperCase() + currentViz.slice(1);
 
         // Update frequency peak

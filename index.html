@@ -37,37 +37,23 @@
                 </label>
                 <select id="visualizerSelect" class="select">
                     <option value="auto">Auto (Recommended)</option>
+                    <optgroup label="⚡ NEW - High Voltage (Shader)">
+                        <option value="shader_electricPlasma">⚡ Electric Plasma</option>
+                        <option value="shader_geometricTunnel">🔲 Geometric Tunnel</option>
+                        <option value="shader_digitalRain">👾 Digital Rain</option>
+                        <option value="gpuParticles">⚛️ Atomic Magnetism</option>
+                    </optgroup>
                     <optgroup label="🌊 Premium Mercury (Three.js)">
                         <option value="mercuryOrbs">💿 True Mercury</option>
                         <option value="liquidMetal">🔮 Liquid Metal</option>
                         <option value="metallicNebula">🌌 Chromium Nebula</option>
+                        <option value="liquidGeometry">💎 Liquid Geometry</option>
                     </optgroup>
                     <optgroup label="Classic Effects">
                         <option value="tornado">Tornado Spiral</option>
                         <option value="cyclone">Cyclone Vortex</option>
                         <option value="spiral1">Double Spiral</option>
-                        <option value="spiral2">Chaotic Spiral</option>
-                        <option value="spiral3">Nested Spirals</option>
-                        <option value="spiral4">Spiral Trails</option>
-                        <option value="tracing">Tracing Waves</option>
-                        <option value="crossing">Crossing Planes</option>
-                        <option value="combined">Combined Effects</option>
-                        <option value="kaleidoscope">Kaleidoscope</option>
-                        <option value="mandala">Mandala</option>
-                        <option value="fractal">Fractal</option>
                         <option value="tunnel">Tunnel Portal</option>
-                        <option value="morphing">Morphing Shapes</option>
-                    </optgroup>
-                    <optgroup label="3D Camera Effects">
-                        <option value="depthlines">Depth Lines</option>
-                        <option value="warptunnel">Warp Tunnel</option>
-                        <option value="3dbars">3D Spectrum Bars</option>
-                        <option value="orbitlines">Orbit Lines</option>
-                        <option value="starburst">Starburst</option>
-                        <option value="horizongrid">Horizon Grid</option>
-                    </optgroup>
-                    <optgroup label="Premium">
-                        <option value="hinduGodPsychedelic">🕉️ Hindu God Psychedelic</option>
                     </optgroup>
                 </select>
             </div>
@@ -90,6 +76,12 @@
                 <span class="label">Loudness:</span>
                 <span id="loudness" class="value">0 dB</span>
             </div>
+        </div>
+
+        <!-- Parameter Control Panel -->
+        <div id="paramPanel" class="param-panel-container" style="display: none;">
+            <button id="toggleParamBtn" class="btn btn-secondary param-toggle">⚙️ Settings</button>
+            <div id="paramContent" class="param-content"></div>
         </div>
     </div>
 
@@ -124,11 +116,11 @@
             }
         });
     </script>
-    <script type="module" src="audioCapture.js"></script>
-    <script type="module" src="audioAnalyzer.js"></script>
-    <script type="module" src="meshVisualizers.js"></script>
-    <script type="module" src="visualizerSelector.js"></script>
-    <script type="module" src="main.js"></script>
+    <script type="module" src="audioCapture.js?v=2"></script>
+    <script type="module" src="audioAnalyzer.js?v=2"></script>
+    <script type="module" src="meshVisualizers.js?v=2"></script>
+    <script type="module" src="visualizerSelector.js?v=2"></script>
+    <script type="module" src="main.js?v=2"></script>
 </body>
 
 </html>

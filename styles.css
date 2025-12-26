@@ -50,6 +50,8 @@ body {
     pointer-events: none;
     opacity: 1;
     transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    perspective: 2000px;
+    /* Enable 3D tilt for children */
 }
 
 .ui-overlay.hidden {
@@ -68,10 +70,13 @@ body {
     left: 0;
     right: 0;
     padding: 24px 32px;
-    background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, rgba(0, 0, 0, 0.3) 60%, transparent 100%);
+    background: linear-gradient(180deg, rgba(20, 20, 30, 0.6) 0%, rgba(20, 20, 30, 0.2) 60%, transparent 100%);
+    backdrop-filter: blur(10px);
     pointer-events: auto;
-    transform: translateY(0);
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease;
+    /* Use CSS vars for tilt interaction without breaking slide animation */
+    transform: translateY(0) rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
+    transition: transform 0.1s ease-out, opacity 0.5s ease;
+    transform-style: preserve-3d;
 }
 
 .ui-overlay.hidden .header {
@@ -430,4 +435,177 @@ body.hide-cursor * {
     to {
         transform: rotate(360deg);
     }
+}
+
+/* ========== PARAMETER PANEL ========== */
+.param-panel-container {
+    position: absolute;
+    bottom: 24px;
+    left: 24px;
+    pointer-events: auto;
+    z-index: 150;
+}
+
+.param-toggle {
+    margin-bottom: 12px;
+}
+
+.param-content {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 16px;
+}
+
+/* Parameter panel styling (from parameterControl.js) */
+.param-panel {
+    background: rgba(20, 20, 35, 0.65);
+    /* More transparent logic */
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    border-radius: 20px;
+    padding: 24px;
+    min-width: 280px;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+    transform: rotateX(var(--tilt-y, 0deg)) rotateY(var(--tilt-x, 0deg));
+    transition: transform 0.1s ease-out;
+}
+
+.param-panel h3 {
+    margin: 0 0 16px 0;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: rgba(139, 92, 246, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 12px;
+}
+
+.param-group {
+    margin-bottom: 16px;
+}
+
+.param-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.param-value {
+    color: #00ffff;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.param-range {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, rgba(139, 92, 246, 0.3), rgba(139, 92, 246, 0.5));
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+.param-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    transition: transform 0.2s ease;
+}
+
+.param-range::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+}
+
+.param-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    border: none;
+}
+
+.param-select {
+    width: 100%;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.param-select:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(139, 92, 246, 0.5);
+}
+
+.param-select:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.8);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.param-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.param-checkbox input {
+    width: 18px;
+    height: 18px;
+    accent-color: #00ffff;
+    cursor: pointer;
+}
+
+.param-checkbox label {
+    font-size: 12px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* Visualizer type badges */
+.viz-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+}
+
+.viz-badge.shader {
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+}
+
+.viz-badge.particles {
+    background: linear-gradient(135deg, #06b6d4, #3b82f6);
+}
+
+.viz-badge.ai {
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+}
+
+.viz-badge.layered {
+    background: linear-gradient(135deg, #10b981, #059669);
 }
