@@ -60,7 +60,10 @@ server.listen(PORT, HOST, () => {
     console.log('='.repeat(60));
     console.log('🎵 Audio Visualizer Server');
     console.log('='.repeat(60));
-    console.log(`\nServer running at: http://${HOST}:${PORT}`);
+    console.log(`\nLocal Access: http://localhost:${PORT}`);
+    console.log(`Network Access: http://${HOST}:${PORT}`);
+    console.log('\nNOTE: For Microphone access to work, please use "localhost"');
+    console.log('      or serve via HTTPS.');
     console.log('\nPress Ctrl+C to stop the server');
     console.log('='.repeat(60));
 });
