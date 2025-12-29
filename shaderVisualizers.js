@@ -103,62 +103,108 @@ export class ShaderVisualizers {
             psychedelicWaves: common + `
                 void main() {
                     vec2 uv = vUv;
-                    // Violent UV Warp
-                    float warp = sin(uv.y * 10.0 + time) * bass * 0.2;
-                    uv.x += warp + beatPulse * 0.1 * sin(time * 20.0);
+                    float warp = sin(uv.y * 12.0 + time) * bass * 0.3;
+                    uv.x += warp + beatPulse * 0.15 * sin(time * 25.0);
                     
                     vec2 center = uv - 0.5;
                     float d = length(center);
                     
-                    float pulse = sin(d * 20.0 - time * 5.0 - bass * 10.0);
-                    vec3 col = hsv2rgb(vec3(d * 0.5 + time * 0.1 + bass * 0.2, 0.8, 1.0));
+                    float pulse = sin(d * 25.0 - time * 6.0 - bass * 12.0);
+                    vec3 col = hsv2rgb(vec3(d * 0.4 + time * 0.15 + bass * 0.25, 0.85, 1.0));
                     
-                    col *= (0.5 + 0.5 * pulse);
-                    col += vec3(high * 0.5); // Flash on highs
-                    
+                    col *= (0.4 + 0.6 * pulse);
+                    col += vec3(high * 0.4); 
                     gl_FragColor = vec4(col, 1.0);
                 }
             `,
             neonVortex: common + `
                 void main() {
                     vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / min(resolution.y, resolution.x);
-                    
-                    // Zoom with beat
-                    uv *= (1.0 - beatPulse * 0.3);
+                    uv *= (1.2 - beatPulse * 0.4 - bass * 0.2);
                     
                     float angle = atan(uv.y, uv.x);
                     float d = length(uv);
+                    angle += d * 6.0 + time * 2.5 + bass * 4.0;
                     
-                    // Twist
-                    angle += d * 5.0 + time * 2.0 + bass * 3.0;
+                    float rings = sin(d * 50.0 - time * 12.0);
+                    float rays = sin(angle * 12.0 + sin(d * 10.0));
                     
-                    float rings = sin(d * 40.0 - time * 10.0);
-                    float rays = sin(angle * 8.0);
+                    vec3 col = hsv2rgb(vec3(angle * 0.15 + time * 0.25, 0.8, 1.0));
+                    col *= smoothstep(0.0, 0.15, abs(rings * rays));
+                    col *= (1.2 + beatPulse * 3.0 + high * 1.5);
                     
-                    vec3 col = hsv2rgb(vec3(angle * 0.1 + time * 0.2, 0.7, 1.0));
-                    col *= smoothstep(0.0, 0.1, abs(rings * rays));
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `,
+            kaleidoscope: common + `
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / min(resolution.y, resolution.x);
+                    float r = length(uv);
+                    float a = atan(uv.y, uv.x);
+                    
+                    float sides = 6.0 + floor(bass * 4.0);
+                    float tau = 6.283185;
+                    a = mod(a, tau/sides) - tau/(sides*2.0);
+                    a = abs(a);
+                    
+                    uv = r * vec2(cos(a), sin(a));
+                    uv.x -= time * 0.1 + bass * 0.2;
+                    
+                    float g = sin(uv.x * 20.0) * sin(uv.y * 20.0);
+                    vec3 col = hsv2rgb(vec3(r * 0.5 + time * 0.1, 0.7, 1.0));
+                    col *= smoothstep(0.0, 0.1, abs(g));
                     col *= (1.0 + beatPulse * 2.0);
                     
                     gl_FragColor = vec4(col, 1.0);
                 }
             `,
-            fractalAudio: common + `
+            hypnoticSpiral: common + `
                 void main() {
-                    vec2 uv = vUv - 0.5;
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / min(resolution.y, resolution.x);
                     float d = length(uv);
+                    float a = atan(uv.y, uv.x);
                     
-                    // Iterate and warp
-                    for(float i=0.0; i<4.0; i++){
-                        uv = abs(uv) - 0.5;
-                        float a = time * 0.2 + i * 0.1 + bass * 0.5;
-                        uv *= mat2(cos(a), -sin(a), sin(a), cos(a));
+                    float spiral = sin(a * 3.0 + d * 20.0 - time * 10.0 - bass * 15.0);
+                    vec3 col = hsv2rgb(vec3(d - time * 0.2 + a * 0.1, 0.9, 1.0));
+                    
+                    col *= smoothstep(0.0, 0.2, abs(spiral));
+                    col *= (0.5 / d) * (1.0 + beatPulse);
+                    gl_FragColor = vec4(col, 1.0);
+                }
+            `,
+            electricStorm: common + `
+                float noise(vec2 p) {
+                    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+                }
+                void main() {
+                    vec2 uv = vUv;
+                    vec3 col = vec3(0.0);
+                    
+                    for(float i=1.0; i<5.0; i++) {
+                        float speed = time * i * 0.5;
+                        float bolt = abs(0.01 / (uv.y - 0.5 + sin(uv.x * 10.0 * i + speed) * 0.2 * bass));
+                        col += bolt * hsv2rgb(vec3(0.6 + i * 0.1, 0.8, 1.0));
                     }
                     
-                    float dist = length(uv);
-                    vec3 col = hsv2rgb(vec3(dist * 2.0 + time * 0.3, 0.6 + mid * 0.4, 1.0));
-                    col *= (0.2 / dist) * (1.0 + beatPulse);
-                    
+                    col *= (1.0 + beatPulse * 3.0 + high * 2.0);
                     gl_FragColor = vec4(col, 1.0);
+                }
+            `,
+            sacredGeometry: common + `
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / min(resolution.y, resolution.x);
+                    float d = length(uv);
+                    float col = 0.0;
+                    
+                    for(float i=0.0; i<3.0; i++) {
+                        float r = 0.2 + i * 0.2 + bass * 0.1;
+                        float circle = abs(d - r);
+                        col += 0.005 / circle;
+                    }
+                    
+                    vec3 finalCol = hsv2rgb(vec3(time * 0.1 + d, 0.8, 1.0)) * col;
+                    finalCol *= (1.0 + beatPulse * 2.0);
+                    gl_FragColor = vec4(finalCol, 1.0);
                 }
             `
         };

@@ -90,7 +90,7 @@ export class MusicIntelligence {
      */
     updateBeatDetection(metadata, now) {
         const amplitude = metadata.amplitude || 0;
-        const bass = metadata.energyBands?.bass || 0;
+        const bass = metadata.energyBands?.bass?.peak || 0;
         const rhythm = metadata.rhythm || {};
 
         // Store beat history
@@ -153,13 +153,11 @@ export class MusicIntelligence {
     calculateTotalEnergy(metadata) {
         const bands = metadata.energyBands || {};
         return (
-            (bands.subBass || 0) * 1.5 +
-            (bands.bass || 0) * 1.3 +
-            (bands.lowMid || 0) +
-            (bands.mid || 0) +
-            (bands.highMid || 0) * 0.8 +
-            (bands.presence || 0) * 0.6 +
-            (bands.brilliance || 0) * 0.4
+            (bands.subBass?.peak || 0) * 1.5 +
+            (bands.bass?.peak || 0) * 1.3 +
+            (bands.mid?.peak || 0) * 1.0 +
+            (bands.highMid?.peak || 0) * 0.8 +
+            (bands.treble?.peak || 0) * 0.6
         );
     }
 
@@ -195,8 +193,8 @@ export class MusicIntelligence {
         const longAvgEnergy = this.getAverageEnergy(this.longEnergyHistory);
         const energyVariance = this.getEnergyVariance();
 
-        const bass = metadata.energyBands?.bass || 0;
-        const treble = metadata.energyBands?.brilliance || 0;
+        const bass = metadata.energyBands?.bass?.peak || 0;
+        const treble = metadata.energyBands?.treble?.peak || 0;
         const amplitude = metadata.amplitude || 0;
 
         let newSection = this.currentSection;
@@ -428,8 +426,8 @@ export class MusicIntelligence {
     }
 
     selectVisualizerForSection(section, metadata) {
-        const bass = metadata.energyBands?.bass || 0;
-        const treble = metadata.energyBands?.brilliance || 0;
+        const bass = metadata.energyBands?.bass?.peak || 0;
+        const treble = metadata.energyBands?.treble?.peak || 0;
 
         const visualizerMappings = {
             drop: ['mercuryOrbs', 'liquidMetal', 'starburst', 'combined'],

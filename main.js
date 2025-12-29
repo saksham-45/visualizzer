@@ -44,6 +44,33 @@ class VisualizerApp {
         this.freqPeakSpan = document.getElementById('freqPeak');
         this.amplitudeSpan = document.getElementById('amplitude');
         this.loudnessSpan = document.getElementById('loudness');
+
+        this.populateVisualizerDropdown();
+    }
+
+    populateVisualizerDropdown() {
+        if (!this.visualizerSelector || !this.visualizerSelect) return;
+
+        const structure = this.visualizerSelector.getVisualizerList();
+
+        // Keep the "Auto" option
+        const autoOption = this.visualizerSelect.querySelector('option[value="auto"]');
+        this.visualizerSelect.innerHTML = '';
+        if (autoOption) this.visualizerSelect.appendChild(autoOption);
+
+        structure.forEach(group => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = group.category;
+
+            group.items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.value;
+                option.textContent = item.label;
+                optgroup.appendChild(option);
+            });
+
+            this.visualizerSelect.appendChild(optgroup);
+        });
     }
 
     setupAutoHideUI() {

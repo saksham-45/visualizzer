@@ -7,6 +7,8 @@ import { PremiumVisualizers } from './premiumVisualizers.js';
 import { FluidVisualizers } from './fluidVisualizers.js';
 import { MusicIntelligence } from './musicIntelligence.js';
 import { BeatEffects } from './beatEffects.js';
+import { performanceOptimizer } from './performanceOptimizer.js';
+import { sharedSettings } from './sharedSettings.js';
 
 // NEW: Import enhanced visualizer modules
 import { ShaderVisualizers } from './shaderVisualizers.js';
@@ -28,6 +30,13 @@ export class Visualizers {
         this.previousVisualizer = null;
         this.previousData = null;
 
+        // Performance optimization
+        this.performanceOptimizer = performanceOptimizer;
+        this.performanceOptimizer.setCanvasContext(this.ctx);
+        
+        // Shared settings
+        this.sharedSettings = sharedSettings;
+        
         // Initialize MeshVisualizers
         this.meshVisualizer = new MeshVisualizers(canvas, audioCapture, audioAnalyzer);
         this.meshTypes = [
@@ -142,12 +151,28 @@ export class Visualizers {
     }
 
     resize() {
-        const rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = rect.width * window.devicePixelRatio;
-        this.canvas.height = rect.height * window.devicePixelRatio;
-        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        this.width = rect.width;
-        this.height = rect.height;
+        // Force the visualizer to always match the full viewport instead of
+        // relying on layout / bounding boxes, which could make it appear as
+        // a smaller canvas in the top‑left on some setups.
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // Ensure CSS also matches full‑screen so getBoundingClientRect stays consistent
+        this.canvas.style.position = 'fixed';
+        this.canvas.style.top = '0px';
+        this.canvas.style.left = '0px';
+        this.canvas.style.width = '100vw';
+        this.canvas.style.height = '100vh';
+
+        // Reset transform before setting new dimensions to prevent accumulation
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+        this.ctx.scale(dpr, dpr);
+        this.width = width;
+        this.height = height;
 
         // Resize enhanced visualizer canvases
         if (this.shaderCanvas) {
@@ -158,6 +183,11 @@ export class Visualizers {
             this.particleCanvas.width = this.canvas.width;
             this.particleCanvas.height = this.canvas.height;
         }
+        
+        // Resize sub-visualizers
+        if (this.meshVisualizer?.resize) this.meshVisualizer.resize();
+        if (this.premiumVisualizer?.resize) this.premiumVisualizer.resize();
+        if (this.fluidVisualizer?.resize) this.fluidVisualizer.resize();
         if (this.aiArt?.resize) this.aiArt.resize();
         if (this.typography?.resize) this.typography.resize();
         if (this.layerBlending?.resize) this.layerBlending.resize();
@@ -216,18 +246,27 @@ export class Visualizers {
     }
 
     render() {
+        // Ensure we have sane dimensions before rendering
+        if (!Number.isFinite(this.width) || this.width <= 0 ||
+            !Number.isFinite(this.height) || this.height <= 0) {
+            this.resize();
+        }
+
+        // Performance optimization - begin frame
+        this.performanceOptimizer.beginFrame();
+        
         const audioData = this.audioCapture.getAudioData();
         const metadata = this.audioAnalyzer?.analyze();
 
         if (!audioData) {
-            // Show fallback idle animation
+            // Show fallback idle animation (optimized)
             this.ctx.fillStyle = 'rgb(10, 10, 20)';
             this.ctx.fillRect(0, 0, this.width, this.height);
 
-            // Draw idle pulsing circle
             const now = Date.now() / 1000;
             const pulse = Math.sin(now * 2) * 0.5 + 0.5;
-            this.ctx.fillStyle = `rgba(100, 200, 255, ${pulse * 0.5})`;
+            const color = this.sharedSettings.calculateAudioReactiveColor(null);
+            this.ctx.fillStyle = `hsla(${color.h}, ${color.s}%, ${color.l}%, ${pulse * 0.5})`;
             this.ctx.beginPath();
             this.ctx.arc(this.width / 2, this.height / 2, 50 + pulse * 30, 0, Math.PI * 2);
             this.ctx.fill();
@@ -236,10 +275,16 @@ export class Visualizers {
             this.ctx.font = '14px sans-serif';
             this.ctx.textAlign = 'center';
             this.ctx.fillText('Waiting for audio...', this.width / 2, this.height - 30);
+            
+            this.performanceOptimizer.endFrame();
             return;
         }
 
-        // Update Music Intelligence
+        // Update shared settings based on performance
+        const fps = this.performanceOptimizer.fps;
+        this.sharedSettings.adjustQualityForPerformance(fps);
+
+        // Update Music Intelligence (if enabled)
         if (this.musicIntelligence && metadata) {
             this.intelligenceState = this.musicIntelligence.update(metadata);
 
@@ -249,31 +294,42 @@ export class Visualizers {
                 this.beatEffects.trigger(effect.type, effect.params);
             }
 
-            // DAMPENED: Trigger beat effects less frequently in 3D to maintain stability
+            // Optimized responsiveness based on performance
             const now = Date.now();
-            if (metadata?.rhythm?.beat && (now - (this.lastBeatTime || 0) > 400)) {
+            const intensity = this.intelligenceState.recommendedIntensity;
+            const energy = this.intelligenceState.dropProbability || 0;
+            const performanceMultiplier = this.performanceOptimizer.effectIntensityMultiplier;
+
+            // Screen Shake on heavy hits (performance-adjusted)
+            if (metadata?.energyBands?.bass?.transient > 0.6 || this.intelligenceState.currentSection === 'drop') {
+                const shake = ((metadata.energyBands.bass.transient * 15) + (energy * 20)) * performanceMultiplier;
+                this.ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+            }
+
+            // Beat effects with performance consideration
+            if (metadata?.rhythm?.beat && (now - (this.lastBeatTime || 0) > 300)) {
                 this.beatEffects.trigger('beat', {
-                    intensity: (metadata.amplitude || 0.5) * 0.8,
+                    intensity: (metadata.amplitude || 0.5) * 1.5 * performanceMultiplier,
                     x: this.width / 2,
                     y: this.height / 2
                 });
                 this.lastBeatTime = now;
             }
 
-            // DAMPENED: High amplitude triggers subtle flash
-            if (metadata?.amplitude > 0.85) {
-                const hue = (metadata.spectralCentroid / 30) % 360 || 0;
+            // High amplitude triggers flash (performance-adjusted)
+            if (metadata?.energyBands?.bass?.transient > 0.8 || metadata?.amplitude > 0.9) {
+                const color = this.sharedSettings.calculateAudioReactiveColor(metadata);
                 this.beatEffects.trigger('flash', {
-                    intensity: metadata.amplitude * 0.2,
-                    color: { h: hue, s: 80, l: 60 }
+                    intensity: metadata.amplitude * 0.4 * performanceMultiplier,
+                    color: { h: color.h, s: color.s, l: color.l }
                 });
             }
 
-            // DAMPENED: Significant bass triggers shockwave
-            if (metadata?.energyBands?.bass > 0.9 && metadata?.amplitude > 0.8) {
-                if (now - (this.lastShockwaveTime || 0) > 2000) {
+            // Significant bass triggers shockwave (performance-adjusted)
+            if (metadata?.energyBands?.bass?.peak > 0.95) {
+                if (now - (this.lastShockwaveTime || 0) > 1000) {
                     this.beatEffects.trigger('shockwave', {
-                        intensity: 0.5,
+                        intensity: 0.8 * performanceMultiplier,
                         x: this.width / 2,
                         y: this.height / 2
                     });
@@ -282,11 +338,10 @@ export class Visualizers {
             }
 
             // Trigger drop effect if drop detected
-            if (this.intelligenceState?.currentSection === 'drop' &&
-                this.intelligenceState?.sectionConfidence > 0.7) {
-                if (!this._lastDropTime || Date.now() - this._lastDropTime > 2000) {
+            if (this.intelligenceState?.currentSection === 'drop') {
+                if (!this._lastDropTime || Date.now() - this._lastDropTime > 500) {
                     this.beatEffects.trigger('drop', {
-                        intensity: this.intelligenceState.recommendedIntensity,
+                        intensity: 1.0,
                         x: this.width / 2,
                         y: this.height / 2
                     });
@@ -296,21 +351,19 @@ export class Visualizers {
 
             // Update camera state based on intelligence recommendations
             const cameraRec = this.musicIntelligence.getCameraRecommendation(Date.now());
-            this.cameraState.targetZoom = cameraRec.zoom;
+            // Boost zoom for dramatic effect
+            this.cameraState.targetZoom = cameraRec.zoom * (1 + (metadata.amplitude * 0.2));
 
             const spreadRec = this.musicIntelligence.getSpreadRecommendation();
             this.cameraState.targetSpread = spreadRec.spread;
-
-            // Intelligent visualizer selection - DELEGATED TO VisualizerSelector via main.js
-            // We expose intelligence data but don't switch autonomously to prevent conflicts.
-            if (this.intelligentMode && this.intelligenceState?.recommendedVisualizer) {
-                // Logic moved to VisualizerSelector
-            }
         }
 
-        // Smooth camera state transitions
+        // Smooth camera state transitions with NaN safety
         this.cameraState.zoom += (this.cameraState.targetZoom - this.cameraState.zoom) * 0.05;
         this.cameraState.spread += (this.cameraState.targetSpread - this.cameraState.spread) * 0.05;
+
+        if (isNaN(this.cameraState.zoom)) this.cameraState.zoom = 1.0;
+        if (isNaN(this.cameraState.spread)) this.cameraState.spread = 1.0;
 
         // Update beat effects
         this.beatEffects.update(0.016, metadata);
@@ -405,6 +458,9 @@ export class Visualizers {
 
         // Render beat effects on top of everything
         this.beatEffects.render(this.ctx);
+        
+        // Performance optimization - end frame
+        this.performanceOptimizer.endFrame();
     }
 
     /**
@@ -676,5 +732,158 @@ export class Visualizers {
         return gradient;
     }
 
-    // Existing renderWave, renderCircleWave, renderBars, renderParticles, renderSpiral, renderSpectrumCircle remain unchanged
+    // ============================================
+    // BASIC VISUALIZER RENDER METHODS
+    // ============================================
+
+    renderWave(audioData, metadata) {
+        const { timeData, bufferLength } = audioData;
+        const amplitude = (metadata?.amplitude || 0.5) * this.height * 0.4;
+        const centerY = this.height / 2;
+        
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = this.getGradient(metadata, 0, 0, this.width, 0);
+        this.ctx.lineWidth = 3;
+        
+        for (let i = 0; i < bufferLength; i++) {
+            const x = (i / bufferLength) * this.width;
+            const v = timeData[i] / 128.0 - 1;
+            const y = centerY + v * amplitude;
+            
+            if (i === 0) this.ctx.moveTo(x, y);
+            else this.ctx.lineTo(x, y);
+        }
+        
+        this.ctx.stroke();
+    }
+
+    renderCircleWave(audioData, metadata) {
+        const { timeData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const baseRadius = Math.min(this.width, this.height) * 0.2;
+        const amplitude = (metadata?.amplitude || 0.5) * baseRadius;
+        
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = this.getGradient(metadata, centerX - baseRadius, centerY, centerX + baseRadius, centerY);
+        this.ctx.lineWidth = 3;
+        
+        for (let i = 0; i <= bufferLength; i++) {
+            const angle = (i / bufferLength) * Math.PI * 2;
+            const dataIndex = i % bufferLength;
+            const v = (timeData[dataIndex] / 128.0 - 1) * amplitude;
+            const radius = baseRadius + v;
+            
+            const x = centerX + Math.cos(angle) * radius;
+            const y = centerY + Math.sin(angle) * radius;
+            
+            if (i === 0) this.ctx.moveTo(x, y);
+            else this.ctx.lineTo(x, y);
+        }
+        
+        this.ctx.closePath();
+        this.ctx.stroke();
+    }
+
+    renderBars(audioData, metadata) {
+        const { frequencyData, bufferLength } = audioData;
+        const barCount = 64;
+        const barWidth = this.width / barCount * 0.8;
+        const gap = this.width / barCount * 0.2;
+        
+        const gradient = this.getGradient(metadata, 0, this.height, 0, 0);
+        this.ctx.fillStyle = gradient;
+        
+        for (let i = 0; i < barCount; i++) {
+            const dataIndex = Math.floor((i / barCount) * (bufferLength / 2));
+            const barHeight = (frequencyData[dataIndex] / 255) * this.height * 0.8;
+            const x = i * (barWidth + gap);
+            const y = this.height - barHeight;
+            
+            this.ctx.fillRect(x, y, barWidth, barHeight);
+        }
+    }
+
+    renderParticles(audioData, metadata) {
+        const { frequencyData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const particleCount = 100;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const dataIndex = Math.floor((i / particleCount) * (bufferLength / 2));
+            const energy = frequencyData[dataIndex] / 255;
+            const angle = (i / particleCount) * Math.PI * 2 + (metadata?.spectralCentroid || 0) * 0.001;
+            const distance = (this.width * 0.15) + (energy * this.width * 0.25);
+            
+            const x = centerX + Math.cos(angle) * distance;
+            const y = centerY + Math.sin(angle) * distance;
+            const size = 2 + energy * 8;
+            
+            const hue = ((i / particleCount) * 360 + (metadata?.spectralCentroid || 0) / 10) % 360;
+            this.ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${0.5 + energy * 0.5})`;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+    }
+
+    renderSpiral(audioData, metadata) {
+        const { timeData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const maxRadius = Math.min(this.width, this.height) * 0.4;
+        const turns = 3;
+        const points = 200;
+        
+        this.ctx.beginPath();
+        this.ctx.strokeStyle = this.getGradient(metadata, centerX - maxRadius, centerY, centerX + maxRadius, centerY);
+        this.ctx.lineWidth = 2;
+        
+        for (let i = 0; i < points; i++) {
+            const progress = i / points;
+            const angle = progress * Math.PI * 2 * turns;
+            const baseRadius = progress * maxRadius;
+            const dataIndex = Math.floor(progress * bufferLength);
+            const amplitude = (timeData[dataIndex] / 128.0 - 1) * maxRadius * 0.2;
+            const radius = baseRadius + amplitude;
+            
+            const x = centerX + Math.cos(angle) * radius;
+            const y = centerY + Math.sin(angle) * radius;
+            
+            if (i === 0) this.ctx.moveTo(x, y);
+            else this.ctx.lineTo(x, y);
+        }
+        
+        this.ctx.stroke();
+    }
+
+    renderSpectrumCircle(audioData, metadata) {
+        const { frequencyData, bufferLength } = audioData;
+        const centerX = this.width / 2;
+        const centerY = this.height / 2;
+        const baseRadius = Math.min(this.width, this.height) * 0.15;
+        const bands = 64;
+        
+        for (let i = 0; i < bands; i++) {
+            const dataIndex = Math.floor((i / bands) * (bufferLength / 2));
+            const energy = frequencyData[dataIndex] / 255;
+            const angle = (i / bands) * Math.PI * 2;
+            const barLength = energy * Math.min(this.width, this.height) * 0.3;
+            
+            const x1 = centerX + Math.cos(angle) * baseRadius;
+            const y1 = centerY + Math.sin(angle) * baseRadius;
+            const x2 = centerX + Math.cos(angle) * (baseRadius + barLength);
+            const y2 = centerY + Math.sin(angle) * (baseRadius + barLength);
+            
+            const hue = ((i / bands) * 360 + (metadata?.spectralCentroid || 0) / 10) % 360;
+            this.ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${0.7 + energy * 0.3})`;
+            this.ctx.lineWidth = 3 + energy * 5;
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y1);
+            this.ctx.lineTo(x2, y2);
+            this.ctx.stroke();
+        }
+    }
 }

@@ -15,19 +15,22 @@ export class VisualizerSelector {
         this.targetTimePerVisualizer = 8000; // Increased to 8s for stability
         this.switchCount = 0;
 
-        // All available visualizers (classic + 3D + fluid + enhanced)
+        // All available visualizers (classic + 3D + fluid + enhanced + layered)
         this.allVisualizers = [
-            // Classic mesh visualizers
-            'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
-            'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala',
-            'fractal', 'morphing',
-            // 3D camera visualizers
-            'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
-            // Premium Fluid & 3D visualizers
+            // ⚡ Enhanced GPU Shaders (most impressive first)
+            'shader_psychedelicWaves', 'shader_neonVortex', 'shader_kaleidoscope',
+            'shader_hypnoticSpiral', 'shader_electricStorm', 'shader_sacredGeometry',
+            // 🌊 Premium Mercury/Fluid
             'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel',
-            // Enhanced GPU Visualizers
-            'shader_psychedelicWaves', 'shader_neonVortex',
-            'gpuParticles'
+            // ✨ Particles
+            'gpuParticles',
+            // 🌀 Classic Effects
+            'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
+            'kaleidoscope', 'mandala', 'fractal', 'wave', 'bars',
+            // 🔷 3D Geometry
+            'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
+            // Extra Classic
+            'tracing', 'crossing', 'combined', 'morphing'
         ];
 
         // Shuffle initially for unique session experience
@@ -113,49 +116,98 @@ export class VisualizerSelector {
      * Get explanation for why a visualizer was selected
      */
     getSelectionReason(metadata, visualizer) {
-        if (!metadata) return 'No audio data available';
-
         const reasons = {
-            tornado: 'Tornado spiral - perfect for energetic, dynamic tracks',
-            cyclone: 'Cyclone vortex - ideal for swirling, balanced audio',
-            spiral1: 'Double spiral - counter-rotating spirals',
-            spiral2: 'Chaotic spiral - unpredictable patterns',
-            spiral3: 'Nested spirals - spirals within spirals',
-            spiral4: 'Spiral trails - trailing spiral effects',
-            tracing: 'Tracing waves - waves in random directions',
-            crossing: 'Crossing planes - planes intersecting',
-            combined: 'Combined effects - all effects merged',
-            kaleidoscope: 'Kaleidoscope - psychedelic mirror patterns',
-            mandala: 'Mandala - radial symmetric patterns',
-            fractal: 'Fractal - recursive geometric patterns',
-            tunnel: 'Tunnel portal - 3D depth effect',
-            morphing: 'Morphing shapes - geometric shape transformations',
-            depthlines: 'Depth Lines - 3D lines with camera movement',
-            warptunnel: 'Warp Tunnel - rushing 3D tunnel',
-            '3dbars': '3D Spectrum Bars - frequency bars in 3D',
-            orbitlines: 'Orbit Lines - 3D orbiting trail particles',
-            starburst: 'Starburst - lines exploding with 3D depth',
-            horizongrid: 'Horizon Grid - 3D perspective grid',
-            // Premium Mercury/Fluid visualizers
-            mercuryOrbs: '💿 True Mercury - liquid metal orb with chromatic reflections',
-            liquidMetal: '🔮 Liquid Metal - flowing metallic surface simulation',
-            metallicNebula: '🌌 Chromium Nebula - cosmic metallic particles',
-            liquidGeometry: '💎 Liquid Geometry - high-frequency geometric chrome deformation',
-            shader_neonVortex: '🌀 Neon Vortex - psychedelic tunnel of light',
-            shader_psychedelicWaves: '🌈 Psychedelic Waves - GPU-accelerated fluid patterns',
-            gpuParticles: '✨ GPU Particles (50K) - ultra responsive particle system',
-            // Enhanced GPU Visualizers
-            'shader_psychedelicWaves': '🌈 Psychedelic Waves - GPU-accelerated fluid patterns',
-            'shader_kaleidoscope': '💎 GPU Kaleidoscope - infinite shimmering mirrors',
-            'shader_hypnoticSpiral': '🌀 Hypnotic Spiral - deep geometric trance',
-            'shader_electricStorm': '⚡ Electric Storm - high-voltage plasma discharge',
-            'shader_sacredGeometry': '📐 Sacred Geometry - mathematical pulse patterns',
-            'gpuParticles': '✨ GPU Particles - 50,000 sentient audio-reactive lights',
-            'layered_psychedelicStack': '📚 Psychedelic Stack - multi-layered GPU masterwork',
-            'layered_cosmicDream': '🌠 Cosmic Dream - ethereal space-time visualization',
-            'layered_electricVoid': '🖤 Electric Void - dark high-energy particle emission'
+            // ✨ Particles & AI
+            'gpuParticles': '✨ Stellar Forge - 60,000 hyper-reactive sentient particles',
+            'aiPsychedelicArt': '🧠 Neural Dream - AI-generated hallucinatory landscapes',
+            'reactiveTypography': '🔡 Kinetic Verse - semantic rhythm-driven typography',
+
+            // ⚡ Enhanced GPU Shaders
+            'shader_psychedelicWaves': '🌈 Harmonic Flux - fluid GPU-accelerated wave interference',
+            'shader_neonVortex': '🌀 Singularity - high-velocity neon event horizon',
+            'shader_kaleidoscope': '💎 Prism Core - infinite shimmering geometric mirrors',
+            'shader_hypnoticSpiral': '🌀 Trance state - deep recursive mathematical tunnel',
+            'shader_electricStorm': '⚡ High Voltage - plasma discharge and electric arcs',
+            'shader_sacredGeometry': '📐 Monad - ancient geometry pulsed by pure energy',
+
+            // 🌊 Premium Mercury/Fluid
+            'mercuryOrbs': '💿 Liquid Mirror - fluid metal orbs with chromatic drift',
+            'liquidMetal': '🔮 Ferrofluid - magnetically controlled metallic surface',
+            'metallicNebula': '🌌 Star Dust - cosmic metallic dust in a gravity well',
+            'liquidGeometry': '💎 Chrome Morph - shapeshifting liquid crystals',
+            'tunnel': '🕳️ Wormhole - infinite folding passage through space-time',
+
+            // 📚 Layered Masterpieces
+            'layered_psychedelicStack': '📚 The God Stack - the ultimate multi-layered visual odyssey',
+            'layered_cosmicDream': '🌠 Astral Plane - ethereal fusion of particles and voids',
+            'layered_electricVoid': '🖤 Dark Matter - violent high-energy particle emission',
+
+            // 🌀 Classic Effects (Overhauled)
+            'tornado': '🌪️ Vortex - a violent upward spiral of audio energy',
+            'cyclone': '🌀 Maelstrom - rotating storm of frequency-driven mesh',
+            'spiral1': '🐚 Fibonacci - logarithmic golden ratio spiral',
+            'spiral2': '🕸️ Web - complex web of intersecting harmonic lines',
+            'spiral3': '🏮 Lantern - glowing nested geometric enclosures',
+            'spiral4': '☄️ Trails - long-exposure kinetic motion paths',
+            'tracing': '✒️ Vector Flow - tracing the invisible lines of music',
+            'crossing': '⚔️ Conflict - planes of data colliding into light',
+            'combined': '🌀 Chaos Theory - all systems pushing to the limit',
+            'kaleidoscope': '💎 Glass - traditional mirrored symmetry refraction',
+            'mandala': '☸️ Zen - radial meditative frequency meditation',
+            'fractal': '🌲 Growth - recursive branching audio mathematics',
+            'morphing': '🧪 Alchemy - the transition of matter between states',
+
+            // 🔷 3D Geometry
+            'warptunnel': '🚀 Warp Speed - rushing through a grid of pure frequency',
+            '3dbars': '📊 Data Scraper - 3D spectrum analysis in physical space',
+            'orbitlines': '🪐 Satellites - points of light orbiting a musical sun',
+            'starburst': '💥 Supernova - explosive expansion from a central peak',
+            'horizongrid': '🛣️ Synthwave - driving into an infinite digital horizon'
         };
 
-        return reasons[visualizer] || 'Unknown visualizer';
+        return reasons[visualizer] || visualizer;
+    }
+
+    /**
+     * Get structured list of all visualizers for UI population
+     */
+    getVisualizerList() {
+        const categories = {
+            '⚡ Enhanced GPU': [
+                'shader_psychedelicWaves', 'shader_neonVortex', 'shader_kaleidoscope',
+                'shader_hypnoticSpiral', 'shader_electricStorm', 'shader_sacredGeometry'
+            ],
+            '✨ Particles & AI': [
+                'gpuParticles', 'aiPsychedelicArt', 'reactiveTypography',
+                'layered_psychedelicStack', 'layered_cosmicDream', 'layered_electricVoid'
+            ],
+            '🌊 Premium Fluid': [
+                'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel'
+            ],
+            '🔷 3D Geometry': [
+                'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid'
+            ],
+            '🌀 Classic Effects': [
+                'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
+                'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala',
+                'fractal', 'morphing', 'wave', 'bars'
+            ]
+        };
+
+        const list = [];
+        for (const [category, keys] of Object.entries(categories)) {
+            list.push({
+                category,
+                items: keys.map(key => {
+                    const desc = this.getSelectionReason(null, key);
+                    // Extract name from "key: Name - Description" format or just "Name - Description"
+                    // The getSelectionReason returns "Name - Description" usually.
+                    let name = desc.split(' - ')[0] || key;
+                    // Remove emojis for cleaner UI if needed, or keep them.
+                    return { value: key, label: name };
+                })
+            });
+        }
+        return list;
     }
 }

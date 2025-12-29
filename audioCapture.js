@@ -98,7 +98,10 @@ export class AudioCapture {
             this.source = this.audioContext.createMediaStreamSource(this.stream);
             this.source.connect(this.gainNode);
             this.isCapturing = true;
+            console.log('[AudioCapture] Microphone capture successful');
             return true;
+        } else {
+            throw new Error('Failed to get audio stream');
         }
     }
 
@@ -257,16 +260,29 @@ export class AudioCapture {
         this.demoNodes.push(highOsc, highGain, highLFO, highLFOGain);
     }
     async start(sourceType = 'mic') {
-        if (this.isCapturing) {
-            this.stop();
-        }
+        try {
+            if (this.isCapturing) {
+                this.stop();
+            }
 
-        if (sourceType === 'mic') {
-            await this.startMicrophone();
-        } else if (sourceType === 'system') {
-            await this.startSystemAudio();
-        } else if (sourceType === 'demo') {
-            await this.startDemoMode();
+            console.log(`[AudioCapture] Starting with source: ${sourceType}`);
+
+            if (sourceType === 'mic') {
+                await this.startMicrophone();
+            } else if (sourceType === 'system') {
+                await this.startSystemAudio();
+            } else if (sourceType === 'demo') {
+                await this.startDemoMode();
+            } else {
+                throw new Error(`Unknown source type: ${sourceType}`);
+            }
+
+            console.log(`[AudioCapture] Successfully started with source: ${sourceType}`);
+            return true;
+        } catch (error) {
+            console.error(`[AudioCapture] Failed to start with source ${sourceType}:`, error);
+            this.stop();
+            throw error;
         }
     }
 

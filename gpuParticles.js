@@ -5,6 +5,8 @@
  * ENHANCED: Violent responsiveness, shape morphing, and transient-driven jitter
  */
 
+const PI2 = Math.PI * 2;
+
 export class GPUParticleSystem {
     constructor(canvas) {
         this.canvas = canvas;
@@ -63,7 +65,7 @@ export class GPUParticleSystem {
                 float phase = fract(seed + time * 0.1);
                 
                 // --- DYNAMIC SHAPE MORPHING ---
-                vec3 spherePos = basePosition * (1.0 + amplitude * 0.2);
+                vec3 spherePos = basePosition * (1.2 + amplitude * 0.4);
                 
                 float angle = atan(basePosition.y, basePosition.x);
                 float radius = length(basePosition.xy) * (1.0 + bass * 0.5);
@@ -73,7 +75,7 @@ export class GPUParticleSystem {
                 vec3 spiralPos = vec3(
                     cos(angle + twist) * radius,
                     sin(angle + twist) * radius,
-                    basePosition.z + sin(twist) * 0.3
+                    basePosition.z + sin(twist + time) * 0.5
                 );
                 
                 vec3 target = spherePos;
@@ -82,30 +84,46 @@ export class GPUParticleSystem {
                 
                 pos = target;
 
-                // --- VIOLENT PHYSICS ---
-                // 1. Radial Explosion on Sub-Bass
-                vec2 dir = normalize(pos.xy + 0.001);
-                pos.xy += dir * (subBass * 0.8 * reactivity);
+                // --- ADVANCED AUDIO PHYSICS ---
+                vec2 dir = normalize(pos.xy + 0.0001);
+                float dist = length(pos.xy);
+
+                // 1. Magnetic Attraction to Frequency Nodes
+                float freqNode1 = sin(time * 0.5) * 0.5;
+                float freqNode2 = cos(time * 0.3) * 0.5;
+                vec2 node = vec2(freqNode1, freqNode2);
+                float nodeDist = distance(pos.xy, node);
+                pos.xy += (node - pos.xy) * (mid * 0.2 / (nodeDist + 0.1));
+
+                // 2. Violent Radial Explosion on Sub-Bass & Beats
+                float explosion = (subBass * 0.8 + beatPulse * 1.5) * reactivity;
+                pos.xy += dir * explosion * (1.1 - dist);
                 
-                // 2. High Frequency Jitter (Transient driven)
-                float jitter = high * 0.15 * reactivity * sin(time * 50.0 + seed);
+                // 3. High Frequency "Quantum" Jitter
+                float jitter = high * 0.25 * reactivity * sin(time * 80.0 + seed);
                 pos.xyz += jitter;
 
-                // 3. Beat Pulse Expansion
-                pos.xy += dir * (beatPulse * 0.5 * reactivity);
-
-                // 4. Mid frequency vortex
-                float rot = mid * 4.0 * reactivity * (1.0 - length(pos.xy));
+                // 4. Centripetal Vortex (Mid frequency)
+                float rot = (mid * 6.0 + bass * 2.0) * reactivity * (1.5 - dist);
                 mat2 rotMat = mat2(cos(rot), -sin(rot), sin(rot), cos(rot));
                 pos.xy = rotMat * pos.xy;
 
+                // 5. Flow via Spectral Centroid
+                pos.x += sin(time * 0.2) * (bass * 0.1);
+                pos.y += cos(time * 0.1) * (bass * 0.1);
+
                 gl_Position = vec4(pos.xy, 0.0, 1.0);
                 
-                // Size responds to intensity and distance
-                gl_PointSize = size * (2.0 + subBass * 20.0 + beatPulse * 30.0) / (0.5 + length(pos.xy));
+                // Reactive Point Size
+                gl_PointSize = size * (1.5 + subBass * 15.0 + beatPulse * 25.0) / (0.4 + dist);
                 
-                vGlow = subBass * 0.5 + beatPulse * 0.7 + high * 0.2;
-                vColor = vec4(color, 0.8 + amplitude * 0.2);
+                vGlow = subBass * 0.6 + beatPulse * 0.8 + high * 0.3;
+                
+                // Color reactive to spectral centroid and energy
+                vec3 finalColor = color;
+                if(beatPulse > 0.8) finalColor = 1.0 - finalColor; // Flash invert
+                
+                vColor = vec4(finalColor, 0.7 + amplitude * 0.3);
             }
         `;
 
@@ -259,5 +277,3 @@ export class GPUParticleSystem {
         gl.drawArrays(gl.POINTS, 0, this.particleCount);
     }
 }
-
-const PI2 = Math.PI * 2;

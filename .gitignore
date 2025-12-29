@@ -30,3 +30,4 @@ replit.nix
 .config/
 
 .env
+.aider*

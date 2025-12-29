@@ -61,12 +61,15 @@ export class ThreeJSVisualizer {
             // Create Three.js canvas
             this.threeCanvas = document.createElement('canvas');
             this.threeCanvas.className = 'three-canvas';
+            // Force the Three.js layer to truly cover the viewport, independent of
+            // any parent layout quirks that could make it render in a smaller
+            // region (top-left quarter, etc.).
             this.threeCanvas.style.cssText = `
-                position: absolute;
+                position: fixed;
                 top: 0;
                 left: 0;
-                width: 100%;
-                height: 100%;
+                width: 100vw;
+                height: 100vh;
                 z-index: 0;
                 pointer-events: none;
             `;
@@ -363,15 +366,18 @@ export class ThreeJSVisualizer {
     resize() {
         if (!this.renderer || !this.threeCanvas) return;
 
-        const container = this.canvas.parentElement;
-        const width = container.clientWidth;
-        const height = container.clientHeight;
+        // Use the actual viewport size so Three.js always matches the full
+        // screen, not just whatever size the parent element happens to be.
+        const width = window.innerWidth;
+        const height = window.innerHeight;
 
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
 
         this.renderer.setSize(width, height);
-        this.composer.setSize(width, height);
+        if (this.composer) {
+            this.composer.setSize(width, height);
+        }
     }
 
     // Enhanced 3D noise function using multiple octaves

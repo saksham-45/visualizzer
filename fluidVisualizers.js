@@ -130,6 +130,7 @@ export class FluidVisualizers {
             'mercuryOrbs',
             'liquidMetal',
             'metallicNebula',
+            'liquidGeometry',
             'tunnel'
         ];
     }

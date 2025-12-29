@@ -48,8 +48,10 @@ export class BeatEffects {
      * Update canvas size
      */
     resize(width, height) {
-        this.width = width;
-        this.height = height;
+        // Guard against invalid sizes which can cause non-finite gradient
+        // coordinates inside the rendering code.
+        this.width = Number.isFinite(width) && width > 0 ? width : (this.canvas?.width || window.innerWidth || 1);
+        this.height = Number.isFinite(height) && height > 0 ? height : (this.canvas?.height || window.innerHeight || 1);
     }
 
     /**
@@ -470,6 +472,15 @@ export class BeatEffects {
     render(ctx = null) {
         const c = ctx || this.ctx;
 
+        // Final safety: if dimensions are invalid, recompute from canvas and bail
+        if (!Number.isFinite(this.width) || this.width <= 0 ||
+            !Number.isFinite(this.height) || this.height <= 0) {
+            if (this.canvas) {
+                this.width = this.canvas.width || window.innerWidth || 1;
+                this.height = this.canvas.height || window.innerHeight || 1;
+            }
+        }
+        
         c.save();
 
         // Render color pulses (background)

@@ -4,6 +4,9 @@
  * Inspired by Apple Music, mathematical motion graphics, and psychedelic art
  */
 
+import { performanceOptimizer } from './performanceOptimizer.js';
+import { sharedSettings } from './sharedSettings.js';
+
 export class PremiumVisualizers {
     constructor(canvas, audioCapture, audioAnalyzer) {
         this.canvas = canvas;
@@ -12,14 +15,22 @@ export class PremiumVisualizers {
         this.audioAnalyzer = audioAnalyzer;
         this.time = 0;
         
-        // Color system
-        this.colorHue = 0;
+        // Performance optimization
+        this.performanceOptimizer = performanceOptimizer;
+        this.performanceOptimizer.setCanvasContext(this.ctx);
+        
+        // Shared settings
+        this.sharedSettings = sharedSettings;
+        
+        // Color system with shared settings
+        this.colorHue = this.sharedSettings.getSetting('baseHue', 200);
         this.colorDrift = 0;
         this.lastBeatTime = 0;
         
-        // Particle systems - optimized for performance
+        // Particle systems - optimized with performance limits
+        const maxParticles = this.sharedSettings.getSetting('maxParticles', 500);
         this.nebulaParticles = [];
-        this.maxNebulaParticles = 300; // Reduced from 2000 for performance
+        this.maxNebulaParticles = Math.min(maxParticles, 300);
         
         // Waveform particles for Apple Music visualizer
         this.waveformParticles = [];
@@ -62,8 +73,10 @@ export class PremiumVisualizers {
 
     resize() {
         const rect = this.canvas.getBoundingClientRect();
-        // Reset transform to avoid cumulative scaling when resize fires
+        
+        // CRITICAL: Reset transform before setting new dimensions to prevent accumulation
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        
         this.canvas.width = rect.width * window.devicePixelRatio;
         this.canvas.height = rect.height * window.devicePixelRatio;
         this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -526,91 +539,173 @@ export class PremiumVisualizers {
         const amplitude = metadata.amplitude || 0.1;
         const bassEnergy = metadata.energyBands?.bass || 0;
         const midEnergy = metadata.energyBands?.mid || 0;
+        const trebleEnergy = metadata.energyBands?.brilliance || 0;
         const beat = metadata.rhythm?.beat || false;
         
-        // Initialize state
+        // Initialize enhanced state
         if (!this.galaxyState) {
-            this.galaxyState = { rotation: 0, mode: 0 };
+            this.galaxyState = { rotation: 0, mode: 0, particles: [], shockwaves: [] };
         }
         
-        // Rotate based on frequencies
-        this.galaxyState.rotation += midEnergy * 1.5 + (beat ? 10 : 0);
+        // AGGRESSIVE rotation based on frequencies
+        this.galaxyState.rotation += midEnergy * 3 + (beat ? 20 : 2) + amplitude * 5;
         
-        // Switch modes on beat
+        // Switch modes on beat with more variety
         if (beat) {
-            this.galaxyState.mode = (this.galaxyState.mode + 1) % 3;
+            this.galaxyState.mode = (this.galaxyState.mode + 1) % 4;
+            
+            // Create beat shockwave
+            this.galaxyState.shockwaves.push({
+                radius: 0,
+                maxRadius: Math.min(this.width, this.height) * 0.6,
+                life: 1,
+                hue: (this.galaxyState.rotation * 2) % 360
+            });
         }
         
-        const barCount = 128;
-        const maxRadius = Math.min(this.width, this.height) * 0.4;
+        const barCount = 180; // More bars for density
+        const maxRadius = Math.min(this.width, this.height) * 0.45;
         
-        // Create 3D bars radiating from center
+        // Create 3D bars with enhanced geometry
         const bars = [];
         
         for (let i = 0; i < barCount; i++) {
             const t = i / barCount;
             const freqIndex = Math.floor(t * bufferLength);
             const energy = frequencyData[freqIndex] / 255;
-            const timeWave = (timeData[freqIndex] / 128.0) * amplitude * 50;
+            const timeWave = (timeData[freqIndex] / 128.0) * amplitude * 80;
             
             let x, y, z;
-            const angle = (i / barCount) * Math.PI * 2 + this.galaxyState.rotation * 0.02;
+            const angle = (i / barCount) * Math.PI * 2 + this.galaxyState.rotation * 0.03;
             
             if (this.galaxyState.mode === 0) {
-                // Spiral mode - bars radiate outward in spiral
-                const radius = Math.max(20, t * maxRadius);
-                x = centerX + Math.cos(angle) * radius;
-                y = centerY + Math.sin(angle) * radius;
-                z = energy * 100 + timeWave;
+                // Spiral galaxy mode - logarithmic spiral
+                const spiralRadius = Math.max(20, Math.exp(t * 2) * maxRadius * 0.15);
+                const spiralAngle = angle + t * Math.PI * 4;
+                x = centerX + Math.cos(spiralAngle) * spiralRadius;
+                y = centerY + Math.sin(spiralAngle) * spiralRadius;
+                z = energy * 120 + timeWave + Math.sin(t * Math.PI * 8) * 30;
             } else if (this.galaxyState.mode === 1) {
-                // Helix mode - bars spiral upward
-                const radius = maxRadius * 0.6;
+                // Double helix DNA mode
+                const radius = maxRadius * (0.4 + 0.3 * Math.sin(angle * 2));
+                const helixOffset = Math.sin(t * Math.PI * 6 + this.time * 2) * 50;
+                x = centerX + Math.cos(angle) * radius + helixOffset;
+                y = centerY + Math.sin(angle) * radius;
+                z = (t - 0.5) * 300 + energy * 120 + timeWave;
+            } else if (this.galaxyState.mode === 2) {
+                // Wave interference pattern
+                const wave1 = Math.sin(angle * 3 + this.time * 2);
+                const wave2 = Math.cos(angle * 5 - this.time * 1.5);
+                const radius = maxRadius * (0.5 + 0.3 * (wave1 + wave2) / 2);
                 x = centerX + Math.cos(angle) * radius;
                 y = centerY + Math.sin(angle) * radius;
-                z = (t - 0.5) * 200 + energy * 100 + timeWave;
+                z = energy * 150 + Math.sin(this.time * 3 + angle * 4) * 80;
             } else {
-                // Wave mode - bars pulse in waves
-                const radius = maxRadius * (0.3 + 0.7 * (0.5 + 0.5 * Math.sin(angle * 3)));
-                x = centerX + Math.cos(angle) * radius;
-                y = centerY + Math.sin(angle) * radius;
-                z = energy * 150 + Math.sin(this.time * 2 + angle) * 50;
+                // Quantum field mode - random quantum jumps
+                const baseRadius = maxRadius * 0.6;
+                const quantumJump = (Math.random() - 0.5) * energy * 100;
+                x = centerX + Math.cos(angle) * baseRadius + quantumJump;
+                y = centerY + Math.sin(angle) * baseRadius + quantumJump;
+                z = energy * 200 + timeWave + Math.sin(t * Math.PI * 12) * 40;
             }
             
-            bars.push({ x, y, z, energy, angle, freqIndex });
+            bars.push({ x, y, z, energy, angle, freqIndex, t });
         }
         
-        // Sort by z-depth for proper rendering (painter's algorithm)
+        // Update and render shockwaves
+        for (let i = this.galaxyState.shockwaves.length - 1; i >= 0; i--) {
+            const wave = this.galaxyState.shockwaves[i];
+            wave.radius += 8;
+            wave.life -= 0.02;
+            
+            if (wave.life <= 0 || wave.radius > wave.maxRadius) {
+                this.galaxyState.shockwaves.splice(i, 1);
+            } else {
+                this.ctx.strokeStyle = `hsla(${wave.hue}, 100%, 60%, ${wave.life * 0.5})`;
+                this.ctx.lineWidth = 3 * wave.life;
+                this.ctx.beginPath();
+                this.ctx.arc(centerX, centerY, wave.radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+        }
+        
+        // Sort by z-depth for proper rendering
         bars.sort((a, b) => a.z - b.z);
         
-        // Render bars
+        // Render bars with enhanced effects
         for (const bar of bars) {
-            const scale = 1 / (1 + bar.z * 0.01);
+            const scale = 1 / (1 + bar.z * 0.008);
             const screenX = centerX + (bar.x - centerX) * scale;
             const screenY = centerY + (bar.y - centerY) * scale;
             
-            const barHeight = bar.energy * maxRadius * scale;
-            const barWidth = 4 + bar.energy * 8;
+            const barHeight = bar.energy * maxRadius * 1.2 * scale;
+            const barWidth = 3 + bar.energy * 10;
             
-            // Color based on frequency
-            const hue = (bar.angle * 180 / Math.PI + this.time * 20) % 360;
-            const saturation = 70 + bar.energy * 30;
-            const lightness = 40 + bar.energy * 40;
+            // Enhanced color system
+            const hue = (bar.angle * 180 / Math.PI + this.time * 30 + bar.t * 120) % 360;
+            const saturation = 80 + bar.energy * 20;
+            const lightness = 45 + bar.energy * 35;
             
-            // Glow intensity based on depth and energy
-            const glowAmount = (1 - scale) * 20 + bar.energy * 15;
+            // Dynamic glow based on energy and depth
+            const glowAmount = (1 - scale) * 30 + bar.energy * 25 + (beat ? 40 : 0);
             
-            // Draw bar with glow
+            // Draw bar with intense glow
             this.ctx.shadowBlur = glowAmount;
-            this.ctx.shadowColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.9)`;
-            this.ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${0.8 + bar.energy * 0.2})`;
+            this.ctx.shadowColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 1)`;
             
-            // Draw vertical bar
-            this.ctx.fillRect(screenX - barWidth / 2, screenY - barHeight, barWidth, barHeight);
+            // Multi-layer bar rendering
+            for (let layer = 0; layer < 3; layer++) {
+                const layerScale = scale * (1 - layer * 0.2);
+                const layerHeight = bar.energy * maxRadius * 1.2 * layerScale;
+                const layerWidth = (barWidth - layer) * (1 + layer * 0.3);
+                const layerX = centerX + (bar.x - centerX) * layerScale;
+                const layerY = centerY + (bar.y - centerY) * layerScale;
+                const layerAlpha = (0.9 - layer * 0.3) * bar.energy;
+                
+                this.ctx.fillStyle = `hsla(${hue}, ${saturation}%, ${lightness + layer * 10}%, ${layerAlpha})`;
+                this.ctx.fillRect(layerX - layerWidth / 2, layerY - layerHeight, layerWidth, layerHeight);
+            }
             
-            // Draw glow cap at top
-            this.ctx.beginPath();
-            this.ctx.arc(screenX, screenY - barHeight, barWidth * 0.8, 0, Math.PI * 2);
-            this.ctx.fill();
+            // Enhanced glow cap with particle effects
+            if (bar.energy > 0.6) {
+                // Draw bright cap
+                this.ctx.fillStyle = `hsla(${hue}, 100%, 80%, ${bar.energy})`;
+                this.ctx.beginPath();
+                this.ctx.arc(screenX, screenY - barHeight, barWidth * 1.2, 0, Math.PI * 2);
+                this.ctx.fill();
+                
+                // Emit particles from high-energy bars
+                if (Math.random() < bar.energy * 0.1 && this.galaxyState.particles.length < 200) {
+                    this.galaxyState.particles.push({
+                        x: screenX,
+                        y: screenY - barHeight,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: -Math.random() * 3 - 1,
+                        size: 1 + Math.random() * 2,
+                        hue: hue,
+                        life: 1
+                    });
+                }
+            }
+        }
+        
+        // Update and render particles
+        for (let i = this.galaxyState.particles.length - 1; i >= 0; i--) {
+            const particle = this.galaxyState.particles[i];
+            
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vy += 0.1; // gravity
+            particle.life -= 0.02;
+            
+            if (particle.life <= 0 || particle.y > this.height) {
+                this.galaxyState.particles.splice(i, 1);
+            } else {
+                this.ctx.fillStyle = `hsla(${particle.hue}, 100%, 70%, ${particle.life})`;
+                this.ctx.beginPath();
+                this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
         }
         
         this.ctx.shadowBlur = 0;
@@ -624,79 +719,172 @@ export class PremiumVisualizers {
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const rings = 80; // More rings for smooth tunnel
-        const segments = 128; // More segments for detail
+        const rings = 120; // More rings for ultra-smooth tunnel
+        const segments = 160; // More segments for ultra detail
         
-        // Initialize tunnel state
+        // Initialize enhanced tunnel state
         if (!this.tunnelState) {
-            this.tunnelState = { innerRadius: 50, rotation: 0 };
+            this.tunnelState = { innerRadius: 50, rotation: 0, warpSpeed: 0, particles: [] };
         }
         
-        // Beat detection for massive zoom effect
-        const beatZoom = metadata.rhythm?.beat ? 1.5 : 0;
+        // Beat detection for WARP SPEED effect
+        const beat = metadata.rhythm?.beat || false;
         const bassEnergy = metadata.energyBands?.bass || 0;
         const midEnergy = metadata.energyBands?.mid || 0;
+        const trebleEnergy = metadata.energyBands?.brilliance || 0;
         const amplitude = metadata.amplitude || 0.1;
         
-        // Smooth zoom towards center - approaching the singularity
-        this.tunnelState.innerRadius += (amplitude * 10 + beatZoom * 50 + bassEnergy * 30) - this.tunnelState.innerRadius * 0.1;
+        // Warp speed acceleration on beats
+        if (beat) {
+            this.tunnelState.warpSpeed = Math.min(1, this.tunnelState.warpSpeed + 0.3);
+        } else {
+            this.tunnelState.warpSpeed *= 0.95;
+        }
         
-        // Rotation based on mid and high frequencies
-        const rotationSpeed = (midEnergy * 3 + amplitude * 1) * 0.02;
-        this.tunnelState.rotation += rotationSpeed;
+        // HYPER-aggressive zoom towards center - singularity approach
+        const zoomFactor = 1 + this.tunnelState.warpSpeed * 2 + amplitude * 15 + bassEnergy * 40;
+        this.tunnelState.innerRadius += (zoomFactor * 50) - this.tunnelState.innerRadius * 0.15;
         
-        // Create rings that SPIRAL from center outward (psychedelic effect)
+        // INSANE rotation based on frequencies
+        const rotationSpeed = (midEnergy * 8 + trebleEnergy * 4 + amplitude * 3) * 0.05;
+        this.tunnelState.rotation += rotationSpeed + (beat ? 50 : 0);
+        
+        // Create HYPER-dimensional spiral tunnel
         for (let ring = 0; ring < rings; ring++) {
-            // Ring depth from center (0 = center, 1 = far away)
             const ringProgress = ring / rings;
             
-            // Ring radiates from very small center outward
-            const ringRadius = Math.max(10, this.tunnelState.innerRadius + ringProgress * Math.min(this.width, this.height) * 0.4);
+            // Multiple spiral patterns
+            const spiralCount = 3 + Math.floor(trebleEnergy * 2);
+            const spiralOffset = (ring * spiralCount) / rings;
+            
+            // Ring radius with pulsing and distortion
+            const baseRadius = Math.max(5, this.tunnelState.innerRadius + ringProgress * Math.min(this.width, this.height) * 0.5);
+            const pulseDistortion = Math.sin(ringProgress * Math.PI * 4 + this.time * 5) * amplitude * 30;
+            const bassDistortion = Math.sin(ringProgress * Math.PI * 8 + bassEnergy * Math.PI * 3) * bassEnergy * 50;
+            const ringRadius = baseRadius + pulseDistortion + bassDistortion;
             
             // Get frequency data for this ring's depth
             const freqIndex = Math.floor(ringProgress * bufferLength);
             const energy = frequencyData[freqIndex] / 255;
-            const timeWave = (timeData[freqIndex] / 128.0) * amplitude * 100;
+            const timeWave = (timeData[freqIndex] / 128.0) * amplitude * 150;
             
-            // Brightness decreases towards center (depth effect)
-            const depthBrightness = ringProgress * 0.6 + 0.4;
+            // Depth-based brightness with enhanced contrast
+            const depthBrightness = ringProgress * 0.8 + 0.2;
             
-            // Color shifts through spectrum as rings approach center
-            const hueShift = (ringProgress * 360 - this.time * 50 + this.tunnelState.rotation * 200) % 360;
+            // Complex color shifting through multiple spectrums
+            const hueShift = (ringProgress * 720 - this.time * 100 + this.tunnelState.rotation * 400 + spiralOffset * 120) % 360;
             
-            // Draw segments of this ring
+            // Draw segments with enhanced geometry
             for (let seg = 0; seg < segments; seg++) {
-                const angle = (seg / segments) * Math.PI * 2 + this.tunnelState.rotation * 0.02;
+                const baseAngle = (seg / segments) * Math.PI * 2;
+                const spiralAngle = baseAngle + this.tunnelState.rotation * 0.05 + ringProgress * Math.PI * 2;
                 const segFreqIndex = Math.floor((seg / segments) * bufferLength);
                 const segEnergy = frequencyData[segFreqIndex] / 255;
                 
-                const x = centerX + Math.cos(angle) * ringRadius;
-                const y = centerY + Math.sin(angle) * ringRadius;
+                // Multiple spiral layers
+                for (let layer = 0; layer < spiralCount; layer++) {
+                    const layerAngle = spiralAngle + (layer * Math.PI * 2 / spiralCount);
+                    const layerRadius = ringRadius * (1 + layer * 0.1 * Math.sin(this.time * 3 + layer));
+                    
+                    const x = centerX + Math.cos(layerAngle) * layerRadius;
+                    const y = centerY + Math.sin(layerAngle) * layerRadius;
+                    
+                    // Dynamic size based on energy and layer
+                    const size = 1 + segEnergy * 12 + (beat ? 5 : 0) - layer * 0.3;
+                    const segHue = (hueShift + seg * (360 / segments) + layer * 60) % 360;
+                    
+                    // INTENSE glow effects
+                    const glowAmount = 15 + segEnergy * 25 + (beat ? 40 : 0) + this.tunnelState.warpSpeed * 30;
+                    this.ctx.shadowBlur = glowAmount;
+                    this.ctx.shadowColor = `hsla(${segHue}, 100%, 70%, 1)`;
+                    
+                    // Multi-layer rendering for depth
+                    const alpha = (0.9 - layer * 0.2) * depthBrightness * (0.7 + segEnergy * 0.3);
+                    this.ctx.fillStyle = `hsla(${segHue}, 100%, ${60 + segEnergy * 30}%, ${alpha})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, size, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Create trailing particles at high energy
+                    if (segEnergy > 0.7 && Math.random() < segEnergy * 0.2 && this.tunnelState.particles.length < 300) {
+                        this.tunnelState.particles.push({
+                            x: x,
+                            y: y,
+                            vx: Math.cos(layerAngle) * (2 + this.tunnelState.warpSpeed * 5),
+                            vy: Math.sin(layerAngle) * (2 + this.tunnelState.warpSpeed * 5),
+                            size: size * 0.5,
+                            hue: segHue,
+                            life: 1,
+                            trail: []
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Update and render particles with trails
+        for (let i = this.tunnelState.particles.length - 1; i >= 0; i--) {
+            const particle = this.tunnelState.particles[i];
+            
+            // Update trail
+            particle.trail.push({ x: particle.x, y: particle.y });
+            if (particle.trail.length > 6) particle.trail.shift();
+            
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vx *= 1.02; // Accelerate
+            particle.vy *= 1.02;
+            particle.life -= 0.03;
+            
+            // Remove if out of bounds or dead
+            const dist = Math.hypot(particle.x - centerX, particle.y - centerY);
+            if (particle.life <= 0 || dist > Math.min(this.width, this.height) * 0.6) {
+                this.tunnelState.particles.splice(i, 1);
+            } else {
+                // Draw trail
+                for (let t = 0; t < particle.trail.length; t++) {
+                    const trailPoint = particle.trail[t];
+                    const trailAlpha = (t / particle.trail.length) * particle.life * 0.4;
+                    this.ctx.fillStyle = `hsla(${particle.hue}, 100%, 70%, ${trailAlpha})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(trailPoint.x, trailPoint.y, particle.size * 0.3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
                 
-                const size = 2 + segEnergy * 8;
-                const segHue = (hue + seg * (360 / segments)) % 360;
-                
-                this.ctx.shadowBlur = 8 + segEnergy * 12;
-                this.ctx.shadowColor = `hsla(${segHue}, 100%, 60%, 0.8)`;
-                this.ctx.fillStyle = `hsla(${segHue}, 100%, 70%, ${0.7 + segEnergy * 0.3})`;
+                // Draw particle with glow
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = `hsla(${particle.hue}, 100%, 80%, 0.9)`;
+                this.ctx.fillStyle = `hsla(${particle.hue}, 100%, 80%, ${particle.life})`;
                 this.ctx.beginPath();
-                this.ctx.arc(x, y, size, 0, Math.PI * 2);
+                this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
                 this.ctx.fill();
             }
         }
         
-        // Draw concentric rings at center for psychedelic effect
-        const centerRings = 20;
+        // Draw hyperspace rings at center
+        const centerRings = 30;
         for (let i = 0; i < centerRings; i++) {
-            const ringR = (this.tunnelState.innerRadius * (i / centerRings)) * 0.9;
-            const ringHue = (i * 18 + this.time * 30) % 360;
+            const ringR = (this.tunnelState.innerRadius * (i / centerRings)) * 0.8;
+            const ringHue = (i * 12 + this.time * 50 + this.tunnelState.rotation * 10) % 360;
+            const ringAlpha = (0.8 * (1 - i / centerRings)) * (0.5 + amplitude * 0.5);
             
-            this.ctx.strokeStyle = `hsla(${ringHue}, 100%, 60%, ${0.5 * (1 - i / centerRings)})`;
-            this.ctx.lineWidth = 2;
+            this.ctx.shadowBlur = 20 + this.tunnelState.warpSpeed * 40;
+            this.ctx.shadowColor = `hsla(${ringHue}, 100%, 60%, 0.9)`;
+            this.ctx.strokeStyle = `hsla(${ringHue}, 100%, ${60 + amplitude * 40}%, ${ringAlpha})`;
+            this.ctx.lineWidth = 3 + amplitude * 5;
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY, ringR, 0, Math.PI * 2);
             this.ctx.stroke();
         }
+        
+        // Central singularity
+        const singularitySize = Math.max(3, this.tunnelState.innerRadius * 0.2);
+        this.ctx.shadowBlur = 50 + this.tunnelState.warpSpeed * 100;
+        this.ctx.shadowColor = 'hsla(280, 100%, 80%, 1)';
+        this.ctx.fillStyle = 'hsla(280, 100%, 90%, 1)';
+        this.ctx.beginPath();
+        this.ctx.arc(centerX, centerY, singularitySize, 0, Math.PI * 2);
+        this.ctx.fill();
         
         this.ctx.shadowBlur = 0;
     }
@@ -795,6 +983,13 @@ export class PremiumVisualizers {
      * 5. Particle Nebula - Optimized with boids/flocking behavior
      */
     renderParticleNebula(audioData, metadata) {
+        // Performance optimization - skip frame if needed
+        if (this.performanceOptimizer.shouldSkipFrame()) {
+            return;
+        }
+        
+        this.performanceOptimizer.startProfile('particleNebula');
+        
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
@@ -802,14 +997,17 @@ export class PremiumVisualizers {
         const beat = metadata.rhythm?.beat || false;
         const beatIntensity = beat ? 1.0 : 0.3;
         
-        // Increase max particles for more impressive nebula
-        this.maxNebulaParticles = Math.min(600, 300 + amplitude * 300);
+        // Get optimized particle count based on performance
+        const baseMaxParticles = this.sharedSettings.getSetting('maxParticles', 500);
+        const performanceMultiplier = this.performanceOptimizer.particleCountMultiplier;
+        this.maxNebulaParticles = this.performanceOptimizer.getOptimizedParticleCount(
+            Math.min(600, 300 + amplitude * 300)
+        );
         
-        // Initialize particles with enhanced spread
+        // Initialize particles with controlled spawning
         if (this.nebulaParticles.length < this.maxNebulaParticles) {
-            const particlesToAdd = Math.min(20, this.maxNebulaParticles - this.nebulaParticles.length);
+            const particlesToAdd = Math.min(10, this.maxNebulaParticles - this.nebulaParticles.length); // Reduced from 40
             for (let i = 0; i < particlesToAdd; i++) {
-                // Spawn particles more dynamically based on audio
                 const angle = Math.random() * Math.PI * 2;
                 const radius = Math.random() * 200;
                 this.nebulaParticles.push({
@@ -817,7 +1015,7 @@ export class PremiumVisualizers {
                     y: centerY + Math.sin(angle) * radius,
                     vx: (Math.random() - 0.5) * 3,
                     vy: (Math.random() - 0.5) * 3,
-                    size: 2 + Math.random() * 5, // Bigger particles
+                    size: 2 + Math.random() * 5,
                     hue: Math.random() * 360,
                     life: 1,
                     maxLife: 1,
@@ -827,29 +1025,33 @@ export class PremiumVisualizers {
             }
         }
         
-        // Apply boids/flocking behavior with enhanced strength
+        // Apply optimized boids behavior
         this.applyBoidsBehavior(this.nebulaParticles, metadata);
         
-        // Batch render with bloom for flashy effect
-        this.ctx.save();
-        this.applyBloom();
+        // Apply bloom effect if enabled
+        const bloomEnabled = this.sharedSettings.getSetting('bloomEnabled', true);
+        if (bloomEnabled) {
+            this.applyBloom();
+        }
+        
+        // Render particles with optimized settings
+        const particleSize = this.sharedSettings.getSetting('particleSize', 1.0);
+        const particleOpacity = this.sharedSettings.getSetting('particleOpacity', 0.8);
         
         for (let i = 0; i < this.nebulaParticles.length; i++) {
             const p = this.nebulaParticles[i];
             
-            // Audio-influenced swirling motion - MUCH stronger based on music
+            // Audio-influenced swirling motion (optimized)
             const dx = p.x - centerX;
             const dy = p.y - centerY;
             const dist = Math.sqrt(dx * dx + dy * dy);
             
             if (dist > 1) {
                 const angle = Math.atan2(dy, dx);
-                // Much stronger swirl based on amplitude and beat
                 const swirlStrength = amplitude * 1.5 + (beat ? 2 : 0.5);
                 p.vx += Math.cos(angle + Math.PI / 2 + this.time * 0.05) * swirlStrength;
                 p.vy += Math.sin(angle + Math.PI / 2 + this.time * 0.05) * swirlStrength;
                 
-                // Radial pulsing from center based on bass energy
                 const bassEnergy = (metadata.energyBands?.bass || 0);
                 const radialForce = bassEnergy * 2;
                 p.vx += (dx / dist) * radialForce;
@@ -860,49 +1062,56 @@ export class PremiumVisualizers {
             p.x += p.vx;
             p.y += p.vy;
             
-            // Boundary wrap with margin
+            // Boundary wrap
             if (p.x < -50) p.x = this.width + 50;
             if (p.x > this.width + 50) p.x = -50;
             if (p.y < -50) p.y = this.height + 50;
             if (p.y > this.height + 50) p.y = -50;
             
-            // Reduced friction for more energetic movement
+            // Apply friction
             p.vx *= 0.92;
             p.vy *= 0.92;
             
-            // Limit max speed
+            // Limit speed
             const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
             if (speed > 8) {
                 p.vx = (p.vx / speed) * 8;
                 p.vy = (p.vy / speed) * 8;
             }
             
-            // Dynamic color shift synced to music
-            p.hue = (p.hue + amplitude * 3 + beatIntensity * 10) % 360;
+            // Dynamic color using shared settings
+            const color = this.sharedSettings.calculateAudioReactiveColor(metadata, { x: p.x, y: p.y });
+            p.hue = color.h;
             
-            // Pulsing size based on beat
+            // Pulsing size
             p.pulsePhase += 0.1;
             const pulseFactor = 1 + Math.sin(p.pulsePhase) * 0.3 + (beat ? 0.5 : 0);
             
-            // Render particle with enhanced brightness
+            // Render particle
             if (p.x >= -100 && p.x <= this.width + 100 && p.y >= -100 && p.y <= this.height + 100) {
                 const freqIndex = Math.floor((Math.abs(Math.atan2(p.y - centerY, p.x - centerX)) / Math.PI) * bufferLength) % bufferLength;
                 const energy = frequencyData[freqIndex] / 255;
-                const color = this.getDynamicColor(metadata, { x: p.x, y: p.y }, energy);
-                const particleSize = this.clampRadius(p.size * pulseFactor * (1 + energy * 1.2), 1);
+                const particleSizeFinal = this.clampRadius(p.size * pulseFactor * (1 + energy * 1.2) * particleSize, 1);
                 
-                // MUCH brighter - higher lightness, higher opacity
-                const opacity = Math.min(1, 0.7 + energy * 0.8 + beatIntensity * 0.3);
-                this.ctx.fillStyle = `hsla(${color.hue}, ${Math.min(100, color.saturation + 20)}%, ${Math.min(100, color.lightness + 20)}%, ${opacity})`;
+                const opacity = Math.min(1, (0.7 + energy * 0.8 + beatIntensity * 0.3) * particleOpacity);
+                this.ctx.fillStyle = `hsla(${color.h}, ${color.s}%, ${color.l}%, ${opacity})`;
                 this.ctx.beginPath();
-                this.ctx.arc(p.x, p.y, particleSize, 0, Math.PI * 2);
+                this.ctx.arc(p.x, p.y, particleSizeFinal, 0, Math.PI * 2);
                 this.ctx.fill();
                 
-                // Add glow effect for extra flashiness
+                // Glow effect for high energy
                 if (energy > 0.5 || beat) {
-                    this.ctx.strokeStyle = `hsla(${color.hue}, ${color.saturation}%, 100%, ${opacity * 0.6})`;
+                    this.ctx.strokeStyle = `hsla(${color.h}, ${color.s}%, 100%, ${opacity * 0.6})`;
                     this.ctx.lineWidth = 1;
                     this.ctx.stroke();
+                }
+                
+                // Frequency-based sparkles
+                if (energy > 0.7 && Math.random() > 0.8) {
+                    this.ctx.fillStyle = `hsla(${color.hue + 180}, 100%, 100%, 1)`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x + (Math.random() - 0.5) * 20, p.y + (Math.random() - 0.5) * 20, 1, 0, Math.PI * 2);
+                    this.ctx.fill();
                 }
             }
         }
@@ -987,8 +1196,8 @@ export class PremiumVisualizers {
     }
 
     /**
-     * 7. Spectrum Circle Halo
-     * Multi-layer frequency ring with liquid glass refraction - Screen filling
+     * 7. Spectrum Circle Halo - OVERHAULED
+     * Rotating kaleidoscopic rings with smoke-like particle emission synced to music
      */
     renderSpectrumCircleHalo(audioData, metadata) {
         const { frequencyData, bufferLength, timeData } = audioData;
@@ -1000,30 +1209,112 @@ export class PremiumVisualizers {
         const midEnergy = (metadata.energyBands?.mid || 0);
         const trebleEnergy = (metadata.energyBands?.brilliance || 0);
         
-        // Initialize state
+        // Initialize enhanced state
         if (!this.haloState) {
             this.haloState = {
                 rotation: 0,
                 zoom: 1,
                 particles: [],
                 orbs: [],
-                spirals: []
+                spirals: [],
+                bubbles: [], // NEW: Smoke-emitting bubbles
+                smokeClouds: [] // NEW: Smoke cloud system
             };
         }
         
-        // Zoom based on bass
-        this.haloState.zoom += (bassEnergy * 0.3 - this.haloState.zoom * 0.05);
-        this.haloState.zoom = Math.max(0.5, Math.min(2, this.haloState.zoom));
+        // AGGRESSIVE rotation and zoom based on music
+        this.haloState.zoom += (bassEnergy * 0.5 - this.haloState.zoom * 0.05);
+        this.haloState.zoom = Math.max(0.5, Math.min(2.5, this.haloState.zoom));
+        this.haloState.rotation += midEnergy * 4 + (beat ? 25 : 2) + amplitude * 10;
         
-        // Rotation from mid frequencies
-        this.haloState.rotation += midEnergy * 2 + (beat ? 15 : 0);
-        
-        const maxRadius = Math.min(this.width, this.height) * 0.4 * this.haloState.zoom;
+        const maxRadius = Math.min(this.width, this.height) * 0.45 * this.haloState.zoom;
         
         this.ctx.save();
         
-        // Draw artistic kaleidoscopic rings
-        const ringCount = 25 + Math.floor(trebleEnergy * 20);
+        // Create smoke-emitting bubbles on beats or high energy
+        if ((beat || amplitude > 0.6) && this.haloState.bubbles.length < 50) {
+            const bubbleCount = beat ? 8 : 3;
+            for (let i = 0; i < bubbleCount; i++) {
+                const angle = (i / bubbleCount) * Math.PI * 2 + this.haloState.rotation * 0.1;
+                const radius = maxRadius * (0.3 + Math.random() * 0.7);
+                
+                this.haloState.bubbles.push({
+                    x: centerX + Math.cos(angle) * radius,
+                    y: centerY + Math.sin(angle) * radius,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: -Math.random() * 2 - 1, // Upward drift
+                    size: 8 + Math.random() * 12,
+                    hue: (this.haloState.rotation + i * 45) % 360,
+                    life: 1,
+                    emissionRate: 0.5 + Math.random() * 0.5,
+                    frequency: Math.random() * 0.5 + 0.5
+                });
+            }
+        }
+        
+        // Update bubbles and emit smoke particles
+        for (let i = this.haloState.bubbles.length - 1; i >= 0; i--) {
+            const bubble = this.haloState.bubbles[i];
+            
+            // Update bubble physics
+            bubble.x += bubble.vx;
+            bubble.y += bubble.vy;
+            bubble.vx *= 0.98;
+            bubble.vy *= 0.99;
+            bubble.life -= 0.005;
+            
+            // Emit smoke particles from bubble
+            if (Math.random() < bubble.emissionRate * amplitude && this.haloState.smokeClouds.length < 500) {
+                for (let j = 0; j < 3; j++) {
+                    this.haloState.smokeClouds.push({
+                        x: bubble.x + (Math.random() - 0.5) * bubble.size,
+                        y: bubble.y + (Math.random() - 0.5) * bubble.size,
+                        vx: (Math.random() - 0.5) * 1.5,
+                        vy: -Math.random() * 1.5 - 0.5, // Upward smoke drift
+                        size: 2 + Math.random() * 4,
+                        hue: bubble.hue + (Math.random() - 0.5) * 30,
+                        life: 1,
+                        opacity: 0.6,
+                        turbulence: Math.random() * 0.02
+                    });
+                }
+            }
+            
+            // Remove dead bubbles
+            if (bubble.life <= 0 || bubble.y < -50) {
+                this.haloState.bubbles.splice(i, 1);
+            }
+        }
+        
+        // Update and render smoke clouds
+        for (let i = this.haloState.smokeClouds.length - 1; i >= 0; i--) {
+            const smoke = this.haloState.smokeClouds[i];
+            
+            // Smoke physics with turbulence
+            smoke.x += smoke.vx + Math.sin(this.time * smoke.frequency) * smoke.turbulence * 10;
+            smoke.y += smoke.vy;
+            smoke.vx *= 0.99;
+            smoke.vy *= 0.99;
+            smoke.life -= 0.008;
+            smoke.opacity *= 0.995;
+            smoke.size *= 1.01; // Smoke expands
+            
+            // Remove dead smoke
+            if (smoke.life <= 0 || smoke.opacity < 0.01 || smoke.y < -100) {
+                this.haloState.smokeClouds.splice(i, 1);
+                continue;
+            }
+            
+            // Render smoke particle
+            const alpha = smoke.opacity * smoke.life;
+            this.ctx.fillStyle = `hsla(${smoke.hue}, 70%, 60%, ${alpha})`;
+            this.ctx.beginPath();
+            this.ctx.arc(smoke.x, smoke.y, smoke.size, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+        
+        // Draw rotating kaleidoscopic rings with enhanced effects
+        const ringCount = 30 + Math.floor(trebleEnergy * 25);
         
         for (let ring = 0; ring < ringCount; ring++) {
             const t = ring / ringCount;
@@ -1033,84 +1324,107 @@ export class PremiumVisualizers {
             const freqIndex = Math.floor(t * bufferLength);
             const energy = frequencyData[freqIndex] / 255;
             
-            // Color from spectrum
-            const hue = (t * 360 + this.haloState.rotation * 0.5 + this.time * 30) % 360;
-            const saturation = 60 + energy * 40 + (beat ? 20 : 0);
-            const lightness = 45 + energy * 35;
+            // Enhanced color system
+            const hue = (t * 360 + this.haloState.rotation * 0.8 + this.time * 50) % 360;
+            const saturation = 70 + energy * 30 + (beat ? 30 : 0);
+            const lightness = 50 + energy * 40;
             
-            // Ring distortion based on audio
-            const waveDistortion = Math.sin(ringRadius * 0.01 + this.time * 2) * amplitude * 30;
-            const bassDistortion = Math.sin(t * Math.PI * 5 + bassEnergy * Math.PI * 2) * bassEnergy * 40;
-            const finalRadius = this.clampRadius(ringRadius + waveDistortion + bassDistortion);
+            // Complex ring distortion
+            const waveDistortion = Math.sin(ringRadius * 0.02 + this.time * 3) * amplitude * 40;
+            const bassDistortion = Math.sin(t * Math.PI * 8 + bassEnergy * Math.PI * 3) * bassEnergy * 60;
+            const beatPulse = beat ? Math.sin(this.time * 10) * 20 : 0;
+            const finalRadius = this.clampRadius(ringRadius + waveDistortion + bassDistortion + beatPulse);
             
             if (finalRadius > 1) {
-                // Glowing ring
-                this.ctx.shadowBlur = 12 + energy * 20;
-                this.ctx.shadowColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 0.9)`;
-                this.ctx.strokeStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${0.6 + energy * 0.4})`;
-                this.ctx.lineWidth = 2 + energy * 5 + (beat ? 3 : 0);
-                this.ctx.beginPath();
-                this.ctx.arc(centerX, centerY, finalRadius, 0, Math.PI * 2);
-                this.ctx.stroke();
+                // INTENSE glowing effect
+                this.ctx.shadowBlur = 20 + energy * 30 + (beat ? 40 : 0);
+                this.ctx.shadowColor = `hsla(${hue}, ${saturation}%, ${lightness}%, 1)`;
                 
-                // Add gradient wave effect
-                const segmentCount = 64;
+                // Multi-layer ring rendering
+                for (let layer = 0; layer < 3; layer++) {
+                    const layerAlpha = (0.6 + energy * 0.4) * (1 - layer * 0.3);
+                    const layerWidth = 4 + energy * 6 - layer;
+                    const layerRadius = finalRadius + layer * 2;
+                    
+                    this.ctx.strokeStyle = `hsla(${hue}, ${saturation}%, ${lightness}%, ${layerAlpha})`;
+                    this.ctx.lineWidth = layerWidth;
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, centerY, layerRadius, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                }
+                
+                // Enhanced rotating segment effects
+                const segmentCount = 80;
                 for (let seg = 0; seg < segmentCount; seg++) {
-                    const angle = (seg / segmentCount) * Math.PI * 2 + this.haloState.rotation * 0.02;
-                    const nextAngle = ((seg + 1) / segmentCount) * Math.PI * 2 + this.haloState.rotation * 0.02;
+                    const angle = (seg / segmentCount) * Math.PI * 2 + this.haloState.rotation * 0.05;
+                    const nextAngle = ((seg + 1) / segmentCount) * Math.PI * 2 + this.haloState.rotation * 0.05;
                     
                     const x1 = centerX + Math.cos(angle) * finalRadius;
                     const y1 = centerY + Math.sin(angle) * finalRadius;
                     const x2 = centerX + Math.cos(nextAngle) * finalRadius;
                     const y2 = centerY + Math.sin(nextAngle) * finalRadius;
                     
-                    const segHue = (hue + seg * (360 / segmentCount)) % 360;
-                    const alpha = 0.3 + energy * 0.4;
+                    const segHue = (hue + seg * (360 / segmentCount) + this.time * 100) % 360;
+                    const alpha = 0.5 + energy * 0.5;
                     
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.shadowColor = `hsla(${segHue}, 100%, 70%, 0.8)`;
                     this.ctx.strokeStyle = `hsla(${segHue}, ${saturation}%, ${lightness}%, ${alpha})`;
-                    this.ctx.lineWidth = 1;
+                    this.ctx.lineWidth = 2 + energy * 3;
                     this.ctx.beginPath();
                     this.ctx.moveTo(x1, y1);
                     this.ctx.lineTo(x2, y2);
                     this.ctx.stroke();
                 }
+                
+                // Draw bubbles on rings
+                if (Math.random() < energy * 0.3) {
+                    const bubbleAngle = Math.random() * Math.PI * 2;
+                    const bubbleX = centerX + Math.cos(bubbleAngle) * finalRadius;
+                    const bubbleY = centerY + Math.sin(bubbleAngle) * finalRadius;
+                    
+                    this.ctx.fillStyle = `hsla(${hue}, 100%, 80%, ${energy * 0.8})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(bubbleX, bubbleY, 2 + energy * 4, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
             }
         }
         
-        // Create artistic spiral arms
-        const spiralArms = 5 + Math.floor(midEnergy * 3);
+        // Enhanced spiral arms with particle trails
+        const spiralArms = 6 + Math.floor(midEnergy * 4);
         for (let arm = 0; arm < spiralArms; arm++) {
-            const armAngle = (arm / spiralArms) * Math.PI * 2 + this.haloState.rotation * 0.03;
+            const armAngle = (arm / spiralArms) * Math.PI * 2 + this.haloState.rotation * 0.05;
             const armFreqIndex = Math.floor((arm / spiralArms) * bufferLength);
             const armEnergy = frequencyData[armFreqIndex] / 255;
             
-            // Draw spiral arm as flowing ribbon
-            for (let step = 0; step < 50; step++) {
-                const t = step / 50;
-                const spiralRadius = t * maxRadius * 1.2;
-                const spiralAngle = armAngle + t * Math.PI * 4 + this.time * 0.5;
+            // Draw spiral arm as flowing energy ribbon
+            for (let step = 0; step < 60; step++) {
+                const t = step / 60;
+                const spiralRadius = t * maxRadius * 1.3;
+                const spiralAngle = armAngle + t * Math.PI * 5 + this.time * 0.8;
                 
                 const x = centerX + Math.cos(spiralAngle) * spiralRadius;
                 const y = centerY + Math.sin(spiralAngle) * spiralRadius;
                 
-                const hue = (360 * arm / spiralArms + t * 60 + this.time * 20) % 360;
-                const alpha = (1 - t) * armEnergy * 0.6;
+                const hue = (360 * arm / spiralArms + t * 80 + this.time * 30) % 360;
+                const alpha = (1 - t) * armEnergy * 0.8;
                 
-                this.ctx.shadowBlur = 10;
-                this.ctx.shadowColor = `hsla(${hue}, 100%, 60%, 0.8)`;
-                this.ctx.fillStyle = `hsla(${hue}, 80%, 55%, ${alpha})`;
+                this.ctx.shadowBlur = 15 + armEnergy * 20;
+                this.ctx.shadowColor = `hsla(${hue}, 100%, 70%, 0.9)`;
+                this.ctx.fillStyle = `hsla(${hue}, 90%, 60%, ${alpha})`;
                 this.ctx.beginPath();
-                this.ctx.arc(x, y, 2 + armEnergy * 4, 0, Math.PI * 2);
+                this.ctx.arc(x, y, 3 + armEnergy * 6 * t, 0, Math.PI * 2);
                 this.ctx.fill();
             }
         }
         
-        // Beat-triggered orb explosion
-        if (beat && this.haloState.orbs.length < 60) {
-            for (let i = 0; i < 20; i++) {
+        // MASSIVE beat-triggered explosions
+        if (beat && this.haloState.orbs.length < 80) {
+            for (let i = 0; i < 30; i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const speed = 3 + Math.random() * 5;
-                const hueOffset = Math.random() * 60;
+                const speed = 5 + Math.random() * 8;
+                const hueOffset = Math.random() * 80;
                 
                 this.haloState.orbs.push({
                     x: centerX,
@@ -1118,42 +1432,55 @@ export class PremiumVisualizers {
                     vx: Math.cos(angle) * speed,
                     vy: Math.sin(angle) * speed,
                     life: 1,
-                    hue: (this.haloState.rotation * 0.5 + hueOffset) % 360,
-                    size: 3 + Math.random() * 5,
-                    trail: []
+                    hue: (this.haloState.rotation * 0.8 + hueOffset) % 360,
+                    size: 4 + Math.random() * 8,
+                    trail: [],
+                    energy: amplitude
                 });
             }
         }
         
-        // Update and render orbs
+        // Update and render orbs with enhanced effects
         for (let i = this.haloState.orbs.length - 1; i >= 0; i--) {
             const orb = this.haloState.orbs[i];
             
+            // Update trail
+            orb.trail.push({ x: orb.x, y: orb.y });
+            if (orb.trail.length > 8) orb.trail.shift();
+            
             orb.x += orb.vx;
             orb.y += orb.vy;
-            orb.vx *= 0.98;
-            orb.vy *= 0.98;
-            orb.life -= 0.02;
+            orb.vx *= 0.97;
+            orb.vy *= 0.97;
+            orb.life -= 0.015;
             
             // Distance from center
             const dist = Math.hypot(orb.x - centerX, orb.y - centerY);
             
-            if (orb.life <= 0 || dist > maxRadius * 1.5) {
+            if (orb.life <= 0 || dist > maxRadius * 2) {
                 this.haloState.orbs.splice(i, 1);
             } else {
-                // Draw orb with trail
-                this.ctx.shadowBlur = 12;
-                this.ctx.shadowColor = `hsla(${orb.hue}, 100%, 60%, 0.8)`;
-                this.ctx.fillStyle = `hsla(${orb.hue}, 100%, 70%, ${orb.life})`;
+                // Draw trail
+                for (let t = 0; t < orb.trail.length; t++) {
+                    const trailPoint = orb.trail[t];
+                    const trailAlpha = (t / orb.trail.length) * orb.life * 0.4;
+                    this.ctx.fillStyle = `hsla(${orb.hue}, 100%, 70%, ${trailAlpha})`;
+                    this.ctx.beginPath();
+                    this.ctx.arc(trailPoint.x, trailPoint.y, orb.size * 0.3, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+                
+                // Draw orb with intense glow
+                this.ctx.shadowBlur = 20 + orb.energy * 30;
+                this.ctx.shadowColor = `hsla(${orb.hue}, 100%, 70%, 0.9)`;
+                this.ctx.fillStyle = `hsla(${orb.hue}, 100%, 80%, ${orb.life})`;
                 this.ctx.beginPath();
-                this.ctx.arc(orb.x, orb.y, orb.size, 0, Math.PI * 2);
+                this.ctx.arc(orb.x, orb.y, orb.size * (1 + orb.energy), 0, Math.PI * 2);
                 this.ctx.fill();
                 
-                // Draw glow sphere
-                this.ctx.strokeStyle = `hsla(${orb.hue}, 100%, 80%, ${orb.life * 0.5})`;
+                // Outer glow
+                this.ctx.strokeStyle = `hsla(${orb.hue}, 100%, 90%, ${orb.life * 0.6})`;
                 this.ctx.lineWidth = 2;
-                this.ctx.beginPath();
-                this.ctx.arc(orb.x, orb.y, orb.size * 2, 0, Math.PI * 2);
                 this.ctx.stroke();
             }
         }
@@ -1180,6 +1507,8 @@ export class PremiumVisualizers {
         this.ctx.fill();
         
         this.ctx.shadowBlur = 0;
+        this.ctx.restore();
+        this.time += 0.016;
     }
 
     /**

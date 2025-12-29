@@ -60,6 +60,10 @@ export class MeshVisualizers {
 
     resize() {
         const rect = this.canvas.getBoundingClientRect();
+        
+        // CRITICAL: Reset transform before setting new dimensions to prevent accumulation
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        
         this.canvas.width = rect.width * window.devicePixelRatio;
         this.canvas.height = rect.height * window.devicePixelRatio;
         this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -308,16 +312,26 @@ export class MeshVisualizers {
     }
 
     drawFilledTriangle(p1, p2, p3, hue, saturation, lightness, alpha) {
+        // Calculate center for gradient origin
+        const cx = (p1.x + p2.x + p3.x) / 3;
+        const cy = (p1.y + p2.y + p3.y) / 3;
+
+        // --- LIQUID METAL SHADING ---
+        // Simulate light reflection based on "height" (z-index)
+        const avgZ = (p1.z + p2.z + p3.z) / 3;
+        const highlight = Math.max(0, avgZ * 0.05);
+
         const gradient = this.ctx.createLinearGradient(
-            (p1.x + p2.x + p3.x) / 3,
-            (p1.y + p2.y + p3.y) / 3,
-            p3.x, p3.y
+            p1.x, p1.y,
+            p3.x + highlight * 100, p3.y + highlight * 100
         );
 
-        // More vibrant alpha and gradients
-        gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness}%, ${alpha * 1.2})`);
-        gradient.addColorStop(0.5, `hsla(${hue + 30}, ${saturation}%, ${lightness + 20}%, ${alpha * 0.9})`);
-        gradient.addColorStop(1, `hsla(${hue + 60}, ${saturation}%, ${lightness}%, ${alpha * 0.4})`);
+        // Multi-stop metallic gradient
+        gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness - 20}%, ${alpha})`);
+        gradient.addColorStop(0.3, `hsla(${hue + 20}, ${saturation + 10}%, ${lightness}%, ${alpha * 0.9})`);
+        gradient.addColorStop(0.5, `hsla(${hue}, 0%, 100%, ${alpha * 0.8 + highlight})`); // Chrome highlight
+        gradient.addColorStop(0.7, `hsla(${hue - 20}, ${saturation}%, ${lightness - 10}%, ${alpha * 0.9})`);
+        gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness - 30}%, ${alpha})`);
 
         this.ctx.fillStyle = gradient;
         this.ctx.beginPath();
@@ -326,6 +340,14 @@ export class MeshVisualizers {
         this.ctx.lineTo(p3.x, p3.y);
         this.ctx.closePath();
         this.ctx.fill();
+
+        // Add a tiny specular dot for "sparkle" on peaks
+        if (avgZ > 150 && Math.random() > 0.98) {
+            this.ctx.fillStyle = '#fff';
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
     }
 
     /**
