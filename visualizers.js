@@ -59,7 +59,7 @@ export class Visualizers {
         try {
             this.shaderVisualizer = new ShaderVisualizers(this.shaderCanvas);
             this.shaderTypes = this.shaderVisualizer.getAvailableShaders();
-            console.log('✓ Shader visualizers initialized:', this.shaderTypes);
+            console.log('Shader visualizers initialized:', this.shaderTypes);
         } catch (e) {
             console.warn('Shader visualizers unavailable:', e);
             this.shaderVisualizer = null;
@@ -72,7 +72,7 @@ export class Visualizers {
         this.particleCanvas.height = canvas.height;
         try {
             this.gpuParticles = new GPUParticleSystem(this.particleCanvas);
-            console.log('✓ GPU particle system initialized');
+            console.log('GPU particle system initialized');
         } catch (e) {
             console.warn('GPU particles unavailable:', e);
             this.gpuParticles = null;

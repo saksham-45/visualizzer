@@ -62,7 +62,7 @@ export class EnhancedVisualizerSystem {
         try {
             // Initialize shader visualizers
             this.shaderViz = new ShaderVisualizers(this.shaderCanvas);
-            console.log('✓ Shader visualizers initialized');
+            console.log('Shader visualizers initialized');
             console.log('  Available shaders:', this.shaderViz.getAvailableShaders());
         } catch (e) {
             console.warn('Shader visualizers unavailable:', e);
@@ -71,7 +71,7 @@ export class EnhancedVisualizerSystem {
         try {
             // Initialize GPU particle system
             this.gpuParticles = new GPUParticleSystem(this.particleCanvas);
-            console.log('✓ GPU particle system initialized');
+            console.log('GPU particle system initialized');
         } catch (e) {
             console.warn('GPU particles unavailable:', e);
         }
@@ -79,7 +79,7 @@ export class EnhancedVisualizerSystem {
         try {
             // Initialize AI art generator
             this.aiArt = new AIPsychedelicArt(this.canvas);
-            console.log('✓ AI psychedelic art initialized');
+            console.log('AI psychedelic art initialized');
         } catch (e) {
             console.warn('AI art unavailable:', e);
         }
@@ -87,7 +87,7 @@ export class EnhancedVisualizerSystem {
         try {
             // Initialize reactive typography
             this.typography = new ReactiveTypography(this.canvas);
-            console.log('✓ Reactive typography initialized');
+            console.log('Reactive typography initialized');
         } catch (e) {
             console.warn('Typography unavailable:', e);
         }
@@ -95,13 +95,13 @@ export class EnhancedVisualizerSystem {
         try {
             // Initialize layer blending system
             this.layerBlending = new LayerBlendingSystem(this.canvas);
-            console.log('✓ Layer blending system initialized');
+            console.log('Layer blending system initialized');
         } catch (e) {
             console.warn('Layer blending unavailable:', e);
         }
 
         this.isInitialized = true;
-        console.log('✓ Enhanced visualizer system ready');
+        console.log('Enhanced visualizer system ready');
     }
 
     resize() {

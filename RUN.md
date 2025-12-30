@@ -1,6 +1,6 @@
 # How to Run the Audio Visualizer
 
-## ⚠️ Important: You Need a Local Server
+## Important: You Need a Local Server
 
 Due to browser security (CORS), ES6 modules require a local server. You **cannot** just open `index.html` directly in your browser.
 
@@ -100,9 +100,9 @@ You can use any HTTP server that serves static files:
 
 ## Browser Compatibility
 
-- ✅ **Chrome/Edge**: Full support (best for system audio)
-- ✅ **Firefox**: Full support (microphone only)
-- ✅ **Safari**: Full support (microphone only)
+- **Chrome/Edge**: Full support (best for system audio)
+- **Firefox**: Full support (microphone only)
+- **Safari**: Full support (microphone only)
 
 ## Need Help?
 

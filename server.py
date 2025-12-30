@@ -49,13 +49,13 @@ def main():
         return
     
     if port != PORT:
-        print(f"⚠️  Port {PORT} is in use, using port {port} instead")
+        print(f"Port {PORT} is in use, using port {port} instead")
     
     try:
         with socketserver.TCPServer(("", port), MyHTTPRequestHandler) as httpd:
             url = f"http://localhost:{port}/index.html"
             print("=" * 60)
-            print("🎵 Audio Visualizer Server")
+            print("Audio Visualizer Server")
             print("=" * 60)
             print(f"\nServer running at: {url}")
             print("\nPress Ctrl+C to stop the server")
@@ -72,8 +72,8 @@ def main():
             except KeyboardInterrupt:
                 print("\n\nServer stopped.")
     except OSError as e:
-        print(f"\n❌ Error starting server: {e}")
-        print(f"\n💡 Try killing the process using port {port}:")
+        print(f"\nError starting server: {e}")
+        print(f"\nTry killing the process using port {port}:")
         print(f"   lsof -ti:{port} | xargs kill -9")
 
 if __name__ == "__main__":

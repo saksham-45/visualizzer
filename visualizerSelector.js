@@ -17,17 +17,17 @@ export class VisualizerSelector {
 
         // All available visualizers (classic + 3D + fluid + enhanced + layered)
         this.allVisualizers = [
-            // ⚡ Enhanced GPU Shaders (most impressive first)
+            // Enhanced GPU Shaders (most impressive first)
             'shader_psychedelicWaves', 'shader_neonVortex', 'shader_kaleidoscope',
             'shader_hypnoticSpiral', 'shader_electricStorm',
-            // 🌊 Premium Mercury/Fluid
+            // Premium Mercury/Fluid
             'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel',
-            // ✨ Particles
+            // Particles
             'gpuParticles',
-            // 🌀 Classic Effects
+            // Classic Effects
             'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
             'kaleidoscope', 'mandala', 'fractal', 'wave', 'bars',
-            // 🔷 3D Geometry
+            // 3D Geometry
             'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
             // Extra Classic
             'tracing', 'crossing', 'combined', 'morphing'
@@ -117,49 +117,49 @@ export class VisualizerSelector {
      */
     getSelectionReason(metadata, visualizer) {
         const reasons = {
-            // ✨ Particles & AI
-            'gpuParticles': '✨ Stellar Forge - 60,000 hyper-reactive sentient particles',
+            // Particles & AI
+            'gpuParticles': 'Stellar Forge - 60,000 hyper-reactive sentient particles',
 
-            // ⚡ Enhanced GPU Shaders
-            'shader_psychedelicWaves': '🌈 Harmonic Flux - fluid GPU-accelerated wave interference',
-            'shader_neonVortex': '🌀 Singularity - high-velocity neon event horizon',
-            'shader_kaleidoscope': '💎 Prism Core - infinite shimmering geometric mirrors',
-            'shader_hypnoticSpiral': '🌀 Trance state - deep recursive mathematical tunnel',
-            'shader_electricStorm': '⚡ High Voltage - plasma discharge and electric arcs',
+            // Enhanced GPU Shaders
+            'shader_psychedelicWaves': 'Harmonic Flux - fluid GPU-accelerated wave interference',
+            'shader_neonVortex': 'Singularity - high-velocity neon event horizon',
+            'shader_kaleidoscope': 'Prism Core - infinite shimmering geometric mirrors',
+            'shader_hypnoticSpiral': 'Trance state - deep recursive mathematical tunnel',
+            'shader_electricStorm': 'High Voltage - plasma discharge and electric arcs',
 
-            // 🌊 Premium Mercury/Fluid
-            'mercuryOrbs': '💿 Liquid Mirror - fluid metal orbs with chromatic drift',
-            'liquidMetal': '🔮 Ferrofluid - magnetically controlled metallic surface',
-            'metallicNebula': '🌌 Star Dust - cosmic metallic dust in a gravity well',
-            'liquidGeometry': '💎 Chrome Morph - shapeshifting liquid crystals',
-            'tunnel': '🕳️ Wormhole (3D) - infinite folding passage through space-time',
+            // Premium Mercury/Fluid
+            'mercuryOrbs': 'Liquid Mirror - fluid metal orbs with chromatic drift',
+            'liquidMetal': 'Ferrofluid - magnetically controlled metallic surface',
+            'metallicNebula': 'Star Dust - cosmic metallic dust in a gravity well',
+            'liquidGeometry': 'Chrome Morph - shapeshifting liquid crystals',
+            'tunnel': 'Wormhole (3D) - infinite folding passage through space-time',
 
-            // 📚 Layered Masterpieces
-            'layered_psychedelicStack': '📚 The God Stack - the ultimate multi-layered visual odyssey',
-            'layered_cosmicDream': '🌠 Astral Plane - ethereal fusion of particles and voids',
-            'layered_electricVoid': '🖤 Dark Matter - violent high-energy particle emission',
+            // Layered Masterpieces
+            'layered_psychedelicStack': 'The God Stack - the ultimate multi-layered visual odyssey',
+            'layered_cosmicDream': 'Astral Plane - ethereal fusion of particles and voids',
+            'layered_electricVoid': 'Dark Matter - violent high-energy particle emission',
 
-            // 🌀 Classic Effects (Overhauled)
-            'tornado': '🌪️ Vortex - a violent upward spiral of audio energy',
-            'cyclone': '🌀 Maelstrom - rotating storm of frequency-driven mesh',
-            'spiral1': '🐚 Fibonacci - logarithmic golden ratio spiral',
-            'spiral2': '🕸️ Web - complex web of intersecting harmonic lines',
-            'spiral3': '🏮 Lantern - glowing nested geometric enclosures',
-            'spiral4': '☄️ Trails - long-exposure kinetic motion paths',
-            'tracing': '✒️ Vector Flow - tracing the invisible lines of music',
-            'crossing': '⚔️ Conflict - planes of data colliding into light',
-            'combined': '🌀 Chaos Theory - all systems pushing to the limit',
-            'kaleidoscope': '💎 Glass - traditional mirrored symmetry refraction',
-            'mandala': '☸️ Zen - radial meditative frequency meditation',
-            'fractal': '🌲 Growth - recursive branching audio mathematics',
-            'morphing': '🧪 Alchemy - the transition of matter between states',
+            // Classic Effects (Overhauled)
+            'tornado': 'Vortex - a violent upward spiral of audio energy',
+            'cyclone': 'Maelstrom - rotating storm of frequency-driven mesh',
+            'spiral1': 'Fibonacci - logarithmic golden ratio spiral',
+            'spiral2': 'Web - complex web of intersecting harmonic lines',
+            'spiral3': 'Lantern - glowing nested geometric enclosures',
+            'spiral4': 'Trails - long-exposure kinetic motion paths',
+            'tracing': 'Vector Flow - tracing the invisible lines of music',
+            'crossing': 'Conflict - planes of data colliding into light',
+            'combined': 'Chaos Theory - all systems pushing to the limit',
+            'kaleidoscope': 'Glass - traditional mirrored symmetry refraction',
+            'mandala': 'Zen - radial meditative frequency meditation',
+            'fractal': 'Growth - recursive branching audio mathematics',
+            'morphing': 'Alchemy - the transition of matter between states',
 
-            // 🔷 3D Geometry
-            'warptunnel': '🚀 Warp Speed - rushing through a grid of pure frequency',
-            '3dbars': '📊 Data Scraper - 3D spectrum analysis in physical space',
-            'orbitlines': '🪐 Satellites - points of light orbiting a musical sun',
-            'starburst': '💥 Supernova - explosive expansion from a central peak',
-            'horizongrid': '🛣️ Synthwave - driving into an infinite digital horizon'
+            // 3D Geometry
+            'warptunnel': 'Warp Speed - rushing through a grid of pure frequency',
+            '3dbars': 'Data Scraper - 3D spectrum analysis in physical space',
+            'orbitlines': 'Satellites - points of light orbiting a musical sun',
+            'starburst': 'Supernova - explosive expansion from a central peak',
+            'horizongrid': 'Synthwave - driving into an infinite digital horizon'
         };
 
         return reasons[visualizer] || visualizer;
@@ -170,20 +170,20 @@ export class VisualizerSelector {
      */
     getVisualizerList() {
         const categories = {
-            '⚡ Enhanced GPU': [
+            'Enhanced GPU': [
                 'shader_psychedelicWaves', 'shader_neonVortex', 'shader_kaleidoscope',
                 'shader_hypnoticSpiral', 'shader_electricStorm'
             ],
-            '✨ Particles': [
+            'Particles': [
                 'gpuParticles'
             ],
-            '🌊 Premium Fluid': [
+            'Premium Fluid': [
                 'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel'
             ],
-            '🔷 3D Geometry': [
+            '3D Geometry': [
                 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid'
             ],
-            '🌀 Classic Effects': [
+            'Classic Effects': [
                 'tornado', 'cyclone', 'spiral1', 'spiral2', 'spiral3', 'spiral4',
                 'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala',
                 'fractal', 'morphing', 'wave', 'bars'

@@ -170,7 +170,7 @@ class VisualizerApp {
     createExitButton() {
         const exitBtn = document.createElement('button');
         exitBtn.id = 'exitFullscreenBtn';
-        exitBtn.textContent = '✕';
+        exitBtn.textContent = 'X';
         exitBtn.className = 'exit-fullscreen-btn';
         exitBtn.style.cssText = `
             display: none;

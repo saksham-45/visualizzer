@@ -87,12 +87,12 @@
 </head>
 <body>
     <div class="debug-container">
-        <h1>🔍 Visualizzer Debug Page</h1>
+        <h1>Visualizzer Debug Page</h1>
         
         <div class="test-section">
             <h2>Basic HTML Test</h2>
             <p>If you can see this text, HTML is working.</p>
-            <div class="status success">✅ HTML is rendering correctly</div>
+            <div class="status success">HTML is rendering correctly</div>
         </div>
         
         <div class="test-section">
@@ -103,18 +103,18 @@
                 <option>Test Option 1</option>
                 <option>Test Option 2</option>
             </select>
-            <div class="status success">✅ CSS is loading correctly</div>
+            <div class="status success">CSS is loading correctly</div>
         </div>
         
         <div class="test-section">
             <h2>JavaScript Test</h2>
             <p id="js-test">Testing JavaScript...</p>
-            <div id="js-status" class="status">⏳ Checking...</div>
+            <div id="js-status" class="status">Checking...</div>
         </div>
         
         <div class="test-section">
             <h2>Module Loading Test</h2>
-            <div id="module-status" class="status">⏳ Testing modules...</div>
+            <div id="module-status" class="status">Testing modules...</div>
         </div>
         
         <div class="test-section">
@@ -126,9 +126,9 @@
     
     <script>
         // Test basic JavaScript
-        document.getElementById('js-test').textContent = '✅ JavaScript is working!';
+        document.getElementById('js-test').textContent = 'JavaScript is working!';
         document.getElementById('js-status').className = 'status success';
-        document.getElementById('js-status').textContent = '✅ JavaScript is enabled and working';
+        document.getElementById('js-status').textContent = 'JavaScript is enabled and working';
         
         // Test module loading
         async function testModules() {
@@ -146,18 +146,18 @@
                 try {
                     const response = await fetch(module);
                     if (response.ok) {
-                        results.push(`✅ ${module} - Found`);
+                        results.push(`${module} - Found`);
                     } else {
-                        results.push(`❌ ${module} - Not found (${response.status})`);
+                        results.push(`${module} - Not found (${response.status})`);
                     }
                 } catch (error) {
-                    results.push(`❌ ${module} - Error: ${error.message}`);
+                    results.push(`${module} - Error: ${error.message}`);
                 }
             }
             
             const moduleStatus = document.getElementById('module-status');
             moduleStatus.innerHTML = results.join('<br>');
-            if (results.every(r => r.includes('✅'))) {
+            if (results.every(r => r.includes('- Found'))) {
                 moduleStatus.className = 'status success';
             } else {
                 moduleStatus.className = 'status error';

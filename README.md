@@ -24,7 +24,7 @@ The system analyzes your audio in real-time and automatically selects the best v
 - **Energy Bands** - Energy across 7 frequency bands (sub-bass to brilliance)
 - **Rhythm Analysis** - Beat detection and variance
 
-### 🎵 Audio Input Options
+### Audio Input Options
 
 - **Microphone** - Real-time audio from your microphone
 - **System Audio** - Capture audio from your system (requires browser permission to share tab/window audio)

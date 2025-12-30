@@ -58,7 +58,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, HOST, () => {
     console.log('='.repeat(60));
-    console.log('🎵 Audio Visualizer Server');
+    console.log('Audio Visualizer Server');
     console.log('='.repeat(60));
     console.log(`\nLocal Access: http://localhost:${PORT}`);
     console.log(`Network Access: http://${HOST}:${PORT}`);
