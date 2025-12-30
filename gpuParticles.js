@@ -34,6 +34,7 @@ export class GPUParticleSystem {
         if (!this.gl) { console.error('WebGL not supported'); return; }
 
         const gl = this.gl;
+        gl.clearColor(0, 0, 0, 1);
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
@@ -115,13 +116,17 @@ export class GPUParticleSystem {
                 gl_Position = vec4(pos.xy, 0.0, 1.0);
                 
                 // Reactive Point Size
-                gl_PointSize = size * (1.5 + subBass * 15.0 + beatPulse * 25.0) / (0.4 + dist);
+                float rawSize = size * (1.5 + subBass * 14.0 + beatPulse * 22.0) / (0.55 + dist);
+                gl_PointSize = clamp(rawSize, 1.0, 80.0);
                 
                 vGlow = subBass * 0.6 + beatPulse * 0.8 + high * 0.3;
                 
                 // Color reactive to spectral centroid and energy
                 vec3 finalColor = color;
                 if(beatPulse > 0.8) finalColor = 1.0 - finalColor; // Flash invert
+                float hueWarp = sin(time * 0.5 + seed) * 0.5 + 0.5;
+                vec3 alt = vec3(finalColor.b, finalColor.r, finalColor.g);
+                finalColor = mix(finalColor, alt, (amplitude * 0.35 + high * 0.25) * hueWarp);
                 
                 vColor = vec4(finalColor, 0.7 + amplitude * 0.3);
             }
@@ -136,10 +141,17 @@ export class GPUParticleSystem {
                 vec2 coord = gl_PointCoord - 0.5;
                 float dist = length(coord);
                 if (dist > 0.5) discard;
-                
-                float alpha = smoothstep(0.5, 0.0, dist);
-                vec3 finalColor = vColor.rgb * (1.0 + vGlow * 2.5);
-                gl_FragColor = vec4(finalColor, alpha * vColor.a);
+
+                float core = smoothstep(0.28, 0.0, dist);
+                float glow = smoothstep(0.5, 0.0, dist);
+                float a = glow * (0.55 + vGlow * 0.35) + core * (0.45 + vGlow * 0.55);
+
+                vec3 c = vColor.rgb;
+                c *= (0.55 + glow * 0.8);
+                c *= (1.0 + vGlow * 2.2);
+                c += vec3(1.0) * core * (0.10 + vGlow * 0.35);
+
+                gl_FragColor = vec4(c, a * vColor.a);
             }
         `;
 

@@ -1108,15 +1108,17 @@ export class PremiumVisualizers {
                 
                 // Frequency-based sparkles
                 if (energy > 0.7 && Math.random() > 0.8) {
-                    this.ctx.fillStyle = `hsla(${color.hue + 180}, 100%, 100%, 1)`;
+                    this.ctx.fillStyle = `hsla(${(color.h + 180) % 360}, 100%, 100%, 1)`;
                     this.ctx.beginPath();
                     this.ctx.arc(p.x + (Math.random() - 0.5) * 20, p.y + (Math.random() - 0.5) * 20, 1, 0, Math.PI * 2);
                     this.ctx.fill();
                 }
             }
         }
-        
-        this.ctx.restore();
+
+        if (bloomEnabled) {
+            this.removeBloom();
+        }
         this.time += 0.016;
     }
 

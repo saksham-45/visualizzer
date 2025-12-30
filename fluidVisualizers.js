@@ -3,7 +3,6 @@
  * Premium 3D liquid metal/mercury simulation using Three.js
  */
 
-import { ThreeJSVisualizer } from './ThreeJSVisualizer.js';
 import { BeatEffects } from './beatEffects.js';
 
 export class FluidVisualizers {
@@ -17,8 +16,9 @@ export class FluidVisualizers {
         this.height = canvas.height;
         this.time = 0;
 
-        // Premium 3D Engine
-        this.threeVisualizer = new ThreeJSVisualizer(canvas);
+        // Premium 3D Engine (lazy-loaded to avoid hard dependency on CDN/importmap)
+        this.threeVisualizer = null;
+        this._initPromise = null;
 
         // 2D Beat Effects overlay (flashes, shockwaves)
         this.beatEffects = new BeatEffects(canvas);
@@ -33,15 +33,23 @@ export class FluidVisualizers {
     }
 
     initialize() {
-        if (!this.isActive) {
+        if (this.isActive) return;
+        if (this._initPromise) return;
+
+        this._initPromise = (async () => {
             try {
+                const mod = await import('./ThreeJSVisualizer.js');
+                const ThreeJSVisualizer = mod.ThreeJSVisualizer;
+                this.threeVisualizer = new ThreeJSVisualizer(this.canvas);
                 this.threeVisualizer.initialize();
                 this.isActive = true;
                 console.log('[FluidVisualizers] 3D Engine initialized successfully');
             } catch (error) {
                 console.error('[FluidVisualizers] Failed to initialize 3D engine:', error);
+            } finally {
+                this._initPromise = null;
             }
-        }
+        })();
     }
 
     resize() {
@@ -71,6 +79,10 @@ export class FluidVisualizers {
         // Ensure 3D engine is active
         if (!this.isActive) {
             this.initialize();
+        }
+
+        if (!this.isActive || !this.threeVisualizer) {
+            return;
         }
 
         // Sync mode if it changed (Fixes the issue where tunnel wasn't rendering)
@@ -107,7 +119,7 @@ export class FluidVisualizers {
         }
 
         // DAMPENED: Significant bass triggers shockwave
-        if (metadata?.energyBands?.bass > 0.9 && metadata?.amplitude > 0.8) {
+        if ((metadata?.energyBands?.bass?.peak || 0) > 0.9 && (metadata?.amplitude || 0) > 0.8) {
             if (now - (this.lastShockwaveTime || 0) > 2000) {
                 this.beatEffects.trigger('shockwave', {
                     intensity: 0.5,

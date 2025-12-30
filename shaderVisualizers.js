@@ -21,6 +21,64 @@ export class ShaderVisualizers {
         this.initialize();
     }
 
+    deriveMetadataFromAudio(audioData) {
+        const emptyBands = {
+            subBass: { peak: 0, avg: 0, transient: 0 },
+            bass: { peak: 0, avg: 0, transient: 0 },
+            mid: { peak: 0, avg: 0, transient: 0 },
+            treble: { peak: 0, avg: 0, transient: 0 }
+        };
+
+        if (!audioData?.frequencyData || !audioData?.timeData || !audioData?.bufferLength) {
+            return {
+                amplitude: 0,
+                spectralCentroid: 0,
+                rhythm: { beat: false },
+                energyBands: emptyBands
+            };
+        }
+
+        const { frequencyData, timeData, bufferLength } = audioData;
+
+        // Amplitude (0..1)
+        let ampSum = 0;
+        let ampCount = 0;
+        for (let i = 0; i < bufferLength; i += 4) {
+            ampSum += Math.abs((timeData[i] - 128) / 128);
+            ampCount++;
+        }
+        const amplitude = ampCount ? Math.min(1, ampSum / ampCount) : 0;
+
+        const band = (startFrac, endFrac) => {
+            const start = Math.max(0, Math.floor(bufferLength * startFrac));
+            const end = Math.min(bufferLength, Math.floor(bufferLength * endFrac));
+            let peak = 0;
+            let sum = 0;
+            let n = 0;
+            for (let i = start; i < end; i++) {
+                const v = (frequencyData[i] || 0) / 255;
+                if (v > peak) peak = v;
+                sum += v;
+                n++;
+            }
+            return { peak, avg: n ? sum / n : 0, transient: 0 };
+        };
+
+        const energyBands = {
+            subBass: band(0.00, 0.08),
+            bass: band(0.08, 0.20),
+            mid: band(0.20, 0.55),
+            treble: band(0.55, 1.00)
+        };
+
+        return {
+            amplitude,
+            spectralCentroid: 0,
+            rhythm: { beat: false },
+            energyBands
+        };
+    }
+
     initialize() {
         const gl = this.gl;
         if (!gl) return;
@@ -128,8 +186,15 @@ export class ShaderVisualizers {
                     
                     float rings = sin(d * 50.0 - time * 12.0);
                     float rays = sin(angle * 12.0 + sin(d * 10.0));
-                    
-                    vec3 col = hsv2rgb(vec3(angle * 0.15 + time * 0.25, 0.8, 1.0));
+
+                    // Avoid the atan() branch-cut seam by not feeding raw angle into hue.
+                    // Use a continuous hue field based on sin/cos components instead.
+                    vec2 dir = normalize(uv + vec2(1e-6));
+                    float hue = 0.55
+                        + 0.18 * sin(time * 0.25 + dir.x * 2.0 + bass * 1.5)
+                        + 0.18 * sin(time * 0.21 + dir.y * 2.0 + high * 1.2)
+                        + 0.10 * sin(d * 6.0 + time * 0.3);
+                    vec3 col = hsv2rgb(vec3(fract(hue), 0.8, 1.0));
                     col *= smoothstep(0.0, 0.15, abs(rings * rays));
                     col *= (1.2 + beatPulse * 3.0 + high * 1.5);
                     
@@ -161,11 +226,14 @@ export class ShaderVisualizers {
             hypnoticSpiral: common + `
                 void main() {
                     vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / min(resolution.y, resolution.x);
-                    float d = length(uv);
+                    float d = max(length(uv), 0.02);
                     float a = atan(uv.y, uv.x);
                     
                     float spiral = sin(a * 3.0 + d * 20.0 - time * 10.0 - bass * 15.0);
-                    vec3 col = hsv2rgb(vec3(d - time * 0.2 + a * 0.1, 0.9, 1.0));
+
+                    // Avoid seam from atan() discontinuity by using sin/cos components in hue.
+                    float hue = d - time * 0.2 + sin(a) * 0.18 + cos(a) * 0.12;
+                    vec3 col = hsv2rgb(vec3(fract(hue), 0.9, 1.0));
                     
                     col *= smoothstep(0.0, 0.2, abs(spiral));
                     col *= (0.5 / d) * (1.0 + beatPulse);
@@ -216,16 +284,17 @@ export class ShaderVisualizers {
 
     render(audioData, metadata, deltaTime = 0.016) {
         const gl = this.gl;
-        if (!gl || !metadata) return;
+        if (!gl) return;
 
-        const bands = metadata.energyBands;
+        const safeMetadata = metadata || this.deriveMetadataFromAudio(audioData);
+        const bands = safeMetadata.energyBands;
         if (!bands) return;
 
         this.time += deltaTime * this.params.speed * (1.0 + bands.bass.avg);
         const shader = this.programs[this.currentShader];
         if (!shader) return;
 
-        if (metadata.rhythm?.beat) this.beatPulse = 1.0;
+        if (safeMetadata.rhythm?.beat) this.beatPulse = 1.0;
         this.beatPulse *= 0.9;
 
         gl.viewport(0, 0, this.canvas.width, this.canvas.height);
@@ -235,7 +304,7 @@ export class ShaderVisualizers {
         gl.uniform1f(shader.uniforms.bass, bands.subBass.peak);
         gl.uniform1f(shader.uniforms.mid, bands.mid.peak);
         gl.uniform1f(shader.uniforms.high, bands.treble.peak);
-        gl.uniform1f(shader.uniforms.amplitude, metadata.amplitude);
+        gl.uniform1f(shader.uniforms.amplitude, safeMetadata.amplitude);
         gl.uniform1f(shader.uniforms.beatPulse, this.beatPulse);
         gl.uniform2f(shader.uniforms.resolution, this.canvas.width, this.canvas.height);
 

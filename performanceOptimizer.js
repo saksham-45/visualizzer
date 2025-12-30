@@ -40,6 +40,8 @@ export class PerformanceOptimizer {
             totalFrames: 0,
             memoryUsage: 0
         };
+
+        this.debug = false;
         
         this.startMonitoring();
     }
@@ -92,7 +94,9 @@ export class PerformanceOptimizer {
             this.increaseQuality();
         }
         
-        console.log(`[Performance] FPS: ${currentFPS.toFixed(1)}, Quality: ${this.qualityLevel}`);
+        if (this.debug) {
+            console.log(`[Performance] FPS: ${currentFPS.toFixed(1)}, Quality: ${this.qualityLevel}`);
+        }
     }
     
     reduceQuality() {
@@ -158,12 +162,6 @@ export class PerformanceOptimizer {
     beginFrame() {
         this.frameCount++;
         this.frameStartTime = performance.now();
-        
-        // Reset canvas transform for clean state
-        const ctx = this.getContext();
-        if (ctx) {
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-        }
     }
     
     endFrame() {

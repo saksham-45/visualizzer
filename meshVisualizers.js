@@ -8,7 +8,11 @@ import { CameraController } from './cameraController.js';
 export class MeshVisualizers {
     constructor(canvas, audioCapture, audioAnalyzer) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d', { alpha: false });
+        // IMPORTANT: Do not request a 2D context with different attributes than the one already
+        // created by other modules (Visualizers / BeatEffects / PremiumVisualizers). Browsers may
+        // return null when getContext() is called again with different attributes, which crashes
+        // the entire render pipeline.
+        this.ctx = canvas.getContext('2d');
         this.audioCapture = audioCapture;
         this.audioAnalyzer = audioAnalyzer;
         this.currentVisualizer = null;
@@ -25,6 +29,14 @@ export class MeshVisualizers {
         this.cachedMeshRows = 0;
 
         this.camera = new CameraController();
+
+        this._lightDir = { x: -0.35, y: -0.25, z: 1.0 };
+        {
+            const len = Math.hypot(this._lightDir.x, this._lightDir.y, this._lightDir.z) || 1;
+            this._lightDir.x /= len;
+            this._lightDir.y /= len;
+            this._lightDir.z /= len;
+        }
 
         this.particles = [];
         this.maxParticles = 30;
@@ -56,6 +68,10 @@ export class MeshVisualizers {
         const normalized = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         const index = Math.floor((normalized / (Math.PI * 2)) * 1024) & 1023;
         return this.cosLUT[index];
+    }
+
+    _coherentNoise(x, y, t) {
+        return this.fastSin(x * 0.012 + y * 0.010 + t * 0.9) * 0.6 + this.fastSin(x * 0.020 - y * 0.014 + t * 1.3) * 0.4;
     }
 
     resize() {
@@ -293,13 +309,13 @@ export class MeshVisualizers {
                 // Calculate color based on position and audio
                 const freqIndex = Math.floor(((x + y) / (cols + rows)) * bufferLength);
                 const energy = frequencyData[freqIndex] / 255;
-                const hue = ((x + y) / (cols + rows)) * 360 +
-                    (metadata?.spectralCentroid || 0) / 20 +
-                    this.time * 10;
+                const baseHue = ((metadata?.spectralCentroid || 2000) / 18 + this.time * 10) % 360;
+                const localHue = ((x / cols) - 0.5) * 55 + ((y / rows) - 0.5) * 55;
+                const hue = (baseHue + localHue + energy * 30) % 360;
 
-                const saturation = 80 + energy * 20;
-                const lightness = 40 + energy * 40;
-                const alpha = 0.6 + energy * 0.4;
+                const saturation = 70 + energy * 25;
+                const lightness = 32 + energy * 42;
+                const alpha = 0.62 + energy * 0.35;
 
                 // Draw two triangles per quad
                 this.drawFilledTriangle(p1, p2, p3, hue, saturation, lightness, alpha);
@@ -316,22 +332,43 @@ export class MeshVisualizers {
         const cx = (p1.x + p2.x + p3.x) / 3;
         const cy = (p1.y + p2.y + p3.y) / 3;
 
-        // --- LIQUID METAL SHADING ---
-        // Simulate light reflection based on "height" (z-index)
         const avgZ = (p1.z + p2.z + p3.z) / 3;
-        const highlight = Math.max(0, avgZ * 0.05);
+
+        const v1x = p2.x - p1.x;
+        const v1y = p2.y - p1.y;
+        const v1z = p2.z - p1.z;
+        const v2x = p3.x - p1.x;
+        const v2y = p3.y - p1.y;
+        const v2z = p3.z - p1.z;
+
+        let nx = v1y * v2z - v1z * v2y;
+        let ny = v1z * v2x - v1x * v2z;
+        let nz = v1x * v2y - v1y * v2x;
+        const nLen = Math.hypot(nx, ny, nz) || 1;
+        nx /= nLen;
+        ny /= nLen;
+        nz /= nLen;
+
+        const diff = Math.max(0, nx * this._lightDir.x + ny * this._lightDir.y + nz * this._lightDir.z);
+        const spec = Math.pow(diff, 10) * (0.35 + Math.min(1, Math.abs(avgZ) / 180) * 0.65);
+
+        const highlight = diff * 0.55 + spec * 1.15;
 
         const gradient = this.ctx.createLinearGradient(
-            p1.x, p1.y,
-            p3.x + highlight * 100, p3.y + highlight * 100
+            cx - this._lightDir.x * 140,
+            cy - this._lightDir.y * 140,
+            cx + this._lightDir.x * 200,
+            cy + this._lightDir.y * 200
         );
 
         // Multi-stop metallic gradient
-        gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${lightness - 20}%, ${alpha})`);
-        gradient.addColorStop(0.3, `hsla(${hue + 20}, ${saturation + 10}%, ${lightness}%, ${alpha * 0.9})`);
-        gradient.addColorStop(0.5, `hsla(${hue}, 0%, 100%, ${alpha * 0.8 + highlight})`); // Chrome highlight
-        gradient.addColorStop(0.7, `hsla(${hue - 20}, ${saturation}%, ${lightness - 10}%, ${alpha * 0.9})`);
-        gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${lightness - 30}%, ${alpha})`);
+        const l0 = Math.max(0, lightness - 28);
+        const l1 = Math.min(95, lightness + 18 + diff * 12);
+        gradient.addColorStop(0, `hsla(${hue}, ${saturation}%, ${l0}%, ${alpha})`);
+        gradient.addColorStop(0.35, `hsla(${(hue + 14) % 360}, ${Math.min(100, saturation + 8)}%, ${Math.min(92, lightness + 10)}%, ${alpha * 0.92})`);
+        gradient.addColorStop(0.55, `hsla(${(hue + 4) % 360}, ${Math.max(0, saturation - 20)}%, ${Math.min(98, l1 + highlight * 22)}%, ${Math.min(1, alpha * 0.78 + highlight * 0.30)})`);
+        gradient.addColorStop(0.75, `hsla(${(hue - 14 + 360) % 360}, ${Math.min(100, saturation + 4)}%, ${Math.max(0, lightness - 6)}%, ${alpha * 0.92})`);
+        gradient.addColorStop(1, `hsla(${hue}, ${saturation}%, ${Math.max(0, lightness - 34)}%, ${alpha})`);
 
         this.ctx.fillStyle = gradient;
         this.ctx.beginPath();
@@ -341,12 +378,13 @@ export class MeshVisualizers {
         this.ctx.closePath();
         this.ctx.fill();
 
-        // Add a tiny specular dot for "sparkle" on peaks
-        if (avgZ > 150 && Math.random() > 0.98) {
-            this.ctx.fillStyle = '#fff';
+        if (spec > 0.55) {
+            this.ctx.globalAlpha = Math.min(0.45, spec * 0.55);
+            this.ctx.fillStyle = `hsla(${(hue + 10) % 360}, 0%, 100%, 1)`;
             this.ctx.beginPath();
-            this.ctx.arc(cx, cy, 1.5, 0, Math.PI * 2);
+            this.ctx.arc(cx, cy, 0.8 + spec * 1.6, 0, Math.PI * 2);
             this.ctx.fill();
+            this.ctx.globalAlpha = 1;
         }
     }
 
@@ -460,7 +498,7 @@ export class MeshVisualizers {
         const { timeData, bufferLength } = audioData;
         // BOOSTED: Significantly more responsive
         const amplitude = metadata.amplitude * 250;
-        const bass = (metadata.energyBands?.bass || 0) * 100;
+        const bass = (metadata.energyBands?.bass?.peak || 0) * 140;
 
         for (let y = 0; y < mesh.length; y++) {
             for (let x = 0; x < mesh[y].length; x++) {
@@ -469,17 +507,14 @@ export class MeshVisualizers {
                 const wave = (timeData[dataIndex] / 128.0 - 1) * amplitude;
                 const wave2 = Math.sin((point.baseX / this.width) * Math.PI * 4 + this.time * 2) * (amplitude * 0.5 + bass * 0.2);
 
-                // Random disturbances for more organic feel
-                const randomDisturbance = Math.random() < 0.1
-                    ? (Math.random() - 0.5) * amplitude * 0.3
-                    : 0;
-                const randomX = Math.random() < 0.05
-                    ? (Math.random() - 0.5) * amplitude * 0.2
-                    : 0;
+                const n = this._coherentNoise(point.baseX, point.baseY, this.time);
+                const n2 = this._coherentNoise(point.baseX + 1200, point.baseY - 900, this.time);
+                const driftY = n * amplitude * (0.10 + (bass / 140) * 0.10);
+                const driftX = n2 * amplitude * 0.06;
 
-                point.y = point.baseY + wave + wave2 + randomDisturbance;
-                point.x = point.baseX + randomX;
-                point.z = wave * 0.3 + Math.abs(randomDisturbance) * 0.2;
+                point.y = point.baseY + wave + wave2 + driftY;
+                point.x = point.baseX + driftX;
+                point.z = (wave + wave2) * 0.55 + driftY * 0.35;
             }
         }
         return mesh;

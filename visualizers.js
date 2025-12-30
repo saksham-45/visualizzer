@@ -3,7 +3,6 @@
  * Enhanced with Music Intelligence, Beat Effects, and NEW Premium Features
  */
 import { MeshVisualizers } from './meshVisualizers.js';
-import { PremiumVisualizers } from './premiumVisualizers.js';
 import { FluidVisualizers } from './fluidVisualizers.js';
 import { MusicIntelligence } from './musicIntelligence.js';
 import { BeatEffects } from './beatEffects.js';
@@ -13,9 +12,6 @@ import { sharedSettings } from './sharedSettings.js';
 // NEW: Import enhanced visualizer modules
 import { ShaderVisualizers } from './shaderVisualizers.js';
 import { GPUParticleSystem } from './gpuParticles.js';
-import { AIPsychedelicArt } from './aiPsychedelicArt.js';
-import { ReactiveTypography } from './reactiveTypography.js';
-import { LayerBlendingSystem } from './layerBlending.js';
 import { ParameterControl } from './parameterControl.js';
 
 export class Visualizers {
@@ -43,14 +39,6 @@ export class Visualizers {
             'wave', 'bars', 'flowing', 'spiral', 'tornado', 'cyclone', 'ripple', 'morphing', 'trippy',
             'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid',
             'spiral1', 'spiral2', 'spiral3', 'spiral4', 'tracing', 'crossing', 'combined', 'kaleidoscope', 'mandala', 'fractal'
-        ];
-
-        // Initialize PremiumVisualizers
-        this.premiumVisualizer = new PremiumVisualizers(canvas, audioCapture, audioAnalyzer);
-        this.premiumTypes = [
-            'appleWaveform', 'circularHarmonic', 'frequencyBarGalaxy', 'enhancedTunnel',
-            'particleNebula', 'mathematicalSpiral', 'spectrumCircleHalo', 'fractalBloom',
-            '3DGeometryShapeshifter', 'hinduGodPsychedelic'
         ];
 
         // Initialize FluidVisualizers (WebGL2 fluid simulation)
@@ -90,33 +78,6 @@ export class Visualizers {
             this.gpuParticles = null;
         }
 
-        // NEW: Initialize AI Psychedelic Art
-        try {
-            this.aiArt = new AIPsychedelicArt(canvas);
-            console.log('✓ AI psychedelic art initialized');
-        } catch (e) {
-            console.warn('AI art unavailable:', e);
-            this.aiArt = null;
-        }
-
-        // NEW: Initialize Reactive Typography
-        try {
-            this.typography = new ReactiveTypography(canvas);
-            console.log('✓ Reactive typography initialized');
-        } catch (e) {
-            console.warn('Typography unavailable:', e);
-            this.typography = null;
-        }
-
-        // NEW: Initialize Layer Blending System
-        try {
-            this.layerBlending = new LayerBlendingSystem(canvas);
-            console.log('✓ Layer blending system initialized');
-        } catch (e) {
-            console.warn('Layer blending unavailable:', e);
-            this.layerBlending = null;
-        }
-
         // NEW: Initialize Parameter Control
         this.paramControl = new ParameterControl();
         this.paramControl.load();
@@ -124,9 +85,8 @@ export class Visualizers {
         // NEW: Enhanced visualizer types
         this.enhancedTypes = [
             'shader_psychedelicWaves', 'shader_kaleidoscope', 'shader_hypnoticSpiral',
-            'shader_electricStorm', 'shader_sacredGeometry',
-            'gpuParticles', 'aiPsychedelicArt', 'reactiveTypography',
-            'layered_psychedelicStack', 'layered_cosmicDream', 'layered_electricVoid'
+            'shader_electricStorm',
+            'gpuParticles'
         ];
 
         // Intelligent mode settings
@@ -148,6 +108,164 @@ export class Visualizers {
         // Resize canvas
         this.resize();
         window.addEventListener('resize', () => this.resize());
+
+        this._syntheticAudio = null;
+
+        this._postCanvas = document.createElement('canvas');
+        this._postCtx = this._postCanvas.getContext('2d');
+        this._grainCanvas = document.createElement('canvas');
+        this._grainCanvas.width = 128;
+        this._grainCanvas.height = 128;
+        this._grainCtx = this._grainCanvas.getContext('2d');
+        this._grainFrame = 0;
+    }
+
+    _updateGrain() {
+        this._grainFrame++;
+        if (this._grainFrame % 3 !== 0) return;
+        const w = this._grainCanvas.width;
+        const h = this._grainCanvas.height;
+        const img = this._grainCtx.createImageData(w, h);
+        const data = img.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const v = (Math.random() * 255) | 0;
+            data[i] = v;
+            data[i + 1] = v;
+            data[i + 2] = v;
+            data[i + 3] = 255;
+        }
+        this._grainCtx.putImageData(img, 0, 0);
+    }
+
+    _applyUnifiedGrade(metadata) {
+        if (!this._postCtx) return;
+
+        const w = this.width;
+        const h = this.height;
+        const dpr = window.devicePixelRatio || 1;
+
+        this._postCtx.setTransform(1, 0, 0, 1, 0, 0);
+        this._postCtx.clearRect(0, 0, this._postCanvas.width, this._postCanvas.height);
+        this._postCtx.drawImage(this.canvas, 0, 0);
+
+        const amp = metadata?.amplitude || 0;
+        const bass = metadata?.energyBands?.bass?.peak || 0;
+        const centroid = metadata?.spectralCentroid || 2000;
+        const hue = (centroid / 20) % 360;
+
+        this._updateGrain();
+
+        this.ctx.save();
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const bloomBlur = 10 + amp * 18 + bass * 10;
+        const bloomAlpha = 0.14 + amp * 0.22;
+        const sat = 1.15 + amp * 0.9;
+
+        this.ctx.globalCompositeOperation = 'screen';
+        this.ctx.globalAlpha = bloomAlpha;
+        this.ctx.filter = `blur(${bloomBlur}px) saturate(${sat}) contrast(1.08)`;
+        this.ctx.drawImage(this._postCanvas, 0, 0, w, h);
+
+        this.ctx.globalAlpha = 0.05 + amp * 0.06;
+        this.ctx.filter = `blur(1px) saturate(1.2) hue-rotate(18deg)`;
+        this.ctx.drawImage(this._postCanvas, -1, 0, w, h);
+        this.ctx.filter = `blur(1px) saturate(1.2) hue-rotate(-18deg)`;
+        this.ctx.drawImage(this._postCanvas, 1, 0, w, h);
+
+        this.ctx.filter = 'none';
+        this.ctx.globalCompositeOperation = 'multiply';
+        this.ctx.globalAlpha = 0.9;
+        const vignette = this.ctx.createRadialGradient(
+            w / 2,
+            h / 2,
+            Math.min(w, h) * 0.15,
+            w / 2,
+            h / 2,
+            Math.max(w, h) * 0.75
+        );
+        vignette.addColorStop(0, 'rgba(0,0,0,0)');
+        vignette.addColorStop(0.75, 'rgba(0,0,0,0.08)');
+        vignette.addColorStop(1, 'rgba(0,0,0,0.70)');
+        this.ctx.fillStyle = vignette;
+        this.ctx.fillRect(0, 0, w, h);
+
+        this.ctx.globalCompositeOperation = 'soft-light';
+        this.ctx.globalAlpha = 0.10 + amp * 0.06;
+        const grade = this.ctx.createLinearGradient(0, 0, w, h);
+        grade.addColorStop(0, `hsla(${(hue + 20) % 360}, 90%, 60%, 0.15)`);
+        grade.addColorStop(0.5, `hsla(${(hue + 120) % 360}, 95%, 55%, 0.12)`);
+        grade.addColorStop(1, `hsla(${(hue + 220) % 360}, 90%, 50%, 0.15)`);
+        this.ctx.fillStyle = grade;
+        this.ctx.fillRect(0, 0, w, h);
+
+        this.ctx.globalCompositeOperation = 'overlay';
+        this.ctx.globalAlpha = 0.035;
+        this.ctx.drawImage(this._grainCanvas, 0, 0, w, h);
+
+        this.ctx.restore();
+    }
+
+    _getSyntheticAudioData() {
+        // Lightweight always-available audio buffer for rendering when capture is unavailable.
+        const bufferLength = 1024;
+        if (!this._syntheticAudio || this._syntheticAudio.bufferLength !== bufferLength) {
+            this._syntheticAudio = {
+                bufferLength,
+                frequencyData: new Uint8Array(bufferLength),
+                timeData: new Uint8Array(bufferLength),
+                sampleRate: 44100,
+                fftSize: 2048
+            };
+        }
+
+        const t = performance.now() * 0.001;
+        for (let i = 0; i < bufferLength; i++) {
+            const phase = (i / bufferLength) * Math.PI * 2;
+            const wave = Math.sin(phase * 2 + t * 2);
+            this._syntheticAudio.timeData[i] = 128 + Math.floor(wave * 20);
+
+            const band = Math.max(0, Math.sin(phase * 6 + t * 1.5));
+            this._syntheticAudio.frequencyData[i] = Math.floor(band * 90);
+        }
+
+        return this._syntheticAudio;
+    }
+
+    _deriveMetadataFromAudioData(audioData) {
+        const { frequencyData, timeData, bufferLength } = audioData;
+        let amp = 0;
+        for (let i = 0; i < bufferLength; i += 4) {
+            amp += Math.abs((timeData[i] - 128) / 128);
+        }
+        const amplitude = Math.min(1, amp / (bufferLength / 4));
+
+        const bandPeak = (startFrac, endFrac) => {
+            const start = Math.floor(bufferLength * startFrac);
+            const end = Math.floor(bufferLength * endFrac);
+            let peak = 0;
+            let sum = 0;
+            let n = 0;
+            for (let i = start; i < end; i++) {
+                const v = (frequencyData[i] || 0) / 255;
+                if (v > peak) peak = v;
+                sum += v;
+                n++;
+            }
+            return { peak, avg: n ? sum / n : 0, transient: 0 };
+        };
+
+        return {
+            amplitude,
+            spectralCentroid: 2000,
+            rhythm: { beat: false },
+            energyBands: {
+                subBass: bandPeak(0.00, 0.08),
+                bass: bandPeak(0.08, 0.20),
+                mid: bandPeak(0.20, 0.55),
+                treble: bandPeak(0.55, 1.00)
+            }
+        };
     }
 
     resize() {
@@ -174,6 +292,11 @@ export class Visualizers {
         this.width = width;
         this.height = height;
 
+        if (this._postCanvas) {
+            this._postCanvas.width = this.canvas.width;
+            this._postCanvas.height = this.canvas.height;
+        }
+
         // Resize enhanced visualizer canvases
         if (this.shaderCanvas) {
             this.shaderCanvas.width = this.canvas.width;
@@ -186,11 +309,7 @@ export class Visualizers {
         
         // Resize sub-visualizers
         if (this.meshVisualizer?.resize) this.meshVisualizer.resize();
-        if (this.premiumVisualizer?.resize) this.premiumVisualizer.resize();
         if (this.fluidVisualizer?.resize) this.fluidVisualizer.resize();
-        if (this.aiArt?.resize) this.aiArt.resize();
-        if (this.typography?.resize) this.typography.resize();
-        if (this.layerBlending?.resize) this.layerBlending.resize();
     }
 
     setVisualizer(type) {
@@ -254,30 +373,21 @@ export class Visualizers {
 
         // Performance optimization - begin frame
         this.performanceOptimizer.beginFrame();
+
+        // CRITICAL: Keep DPR scaling stable.
+        // Some sub-systems apply transforms (shake/zoom). Always reset to DPR at frame start.
+        // If we reset to identity, the browser will render into a DPR-sized backing store
+        // but with CSS pixels, causing the "top-left / overflow" bug.
+        const dpr = window.devicePixelRatio || 1;
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         
-        const audioData = this.audioCapture.getAudioData();
-        const metadata = this.audioAnalyzer?.analyze();
+        let audioData = this.audioCapture.getAudioData();
+        let metadata = this.audioAnalyzer?.analyze();
 
+        // If capture is unavailable, keep rendering using synthetic audio.
         if (!audioData) {
-            // Show fallback idle animation (optimized)
-            this.ctx.fillStyle = 'rgb(10, 10, 20)';
-            this.ctx.fillRect(0, 0, this.width, this.height);
-
-            const now = Date.now() / 1000;
-            const pulse = Math.sin(now * 2) * 0.5 + 0.5;
-            const color = this.sharedSettings.calculateAudioReactiveColor(null);
-            this.ctx.fillStyle = `hsla(${color.h}, ${color.s}%, ${color.l}%, ${pulse * 0.5})`;
-            this.ctx.beginPath();
-            this.ctx.arc(this.width / 2, this.height / 2, 50 + pulse * 30, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            this.ctx.font = '14px sans-serif';
-            this.ctx.textAlign = 'center';
-            this.ctx.fillText('Waiting for audio...', this.width / 2, this.height - 30);
-            
-            this.performanceOptimizer.endFrame();
-            return;
+            audioData = this._getSyntheticAudioData();
+            metadata = metadata || this._deriveMetadataFromAudioData(audioData);
         }
 
         // Update shared settings based on performance
@@ -369,11 +479,27 @@ export class Visualizers {
         this.beatEffects.update(0.016, metadata);
         this.beatEffects.resize(this.width, this.height);
 
-        const visualizerType = this.targetVisualizer || this.currentVisualizer;
+        // Ensure we always have a valid visualizer type.
+        // If this is null/undefined, string ops like startsWith() will throw and the app will render nothing.
+        let visualizerType = this.targetVisualizer || this.currentVisualizer;
+        if (typeof visualizerType !== 'string' || visualizerType.length === 0) {
+            // Prefer a shader ONLY if we actually have a WebGL context.
+            // (ShaderVisualizers can exist with gl=null; in that case shaders render nothing.)
+            const hasWebGL = !!(this.shaderVisualizer && this.shaderVisualizer.gl);
+            visualizerType = hasWebGL ? 'shader_psychedelicWaves' : 'wave';
+            this.currentVisualizer = visualizerType;
+        }
 
-        // Clear canvas with slight trail
-        this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
-        this.ctx.fillRect(0, 0, this.width, this.height);
+        // Clear canvas.
+        // For Three.js fluid visualizers, the background is rendered on a separate WebGL canvas
+        // behind this 2D canvas. Painting a black trail here would hide the 3D scene.
+        if (this.fluidTypes.includes(visualizerType)) {
+            this.ctx.clearRect(0, 0, this.width, this.height);
+        } else {
+            // Slight trail for 2D-only visualizers
+            this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+        }
 
         // Apply camera zoom transform if significant
         if (Math.abs(this.cameraState.zoom - 1.0) > 0.01) {
@@ -390,15 +516,19 @@ export class Visualizers {
 
         // Delegate based on visualizer type
         // NEW: Handle enhanced visualizers first
-        if (visualizerType.startsWith('shader_')) {
+        if (typeof visualizerType === 'string' && visualizerType.startsWith('shader_') && this.shaderVisualizer?.gl) {
             // GPU Shader visualizers
             const shaderType = visualizerType.replace('shader_', '');
             if (this.shaderVisualizer) {
                 this.shaderVisualizer.setShader(shaderType);
                 const params = this.paramControl.getParams(visualizerType);
                 this.shaderVisualizer.setParams(params);
-                this.shaderVisualizer.render(audioData, metadata, deltaTime);
-                this.ctx.drawImage(this.shaderCanvas, 0, 0, this.width, this.height);
+                try {
+                    this.shaderVisualizer.render(audioData, metadata, deltaTime);
+                    this.ctx.drawImage(this.shaderCanvas, 0, 0, this.width, this.height);
+                } catch (e) {
+                    console.error('[Visualizers] Shader render failed:', shaderType, e);
+                }
             }
         } else if (visualizerType === 'gpuParticles') {
             // GPU Particle system
@@ -410,22 +540,10 @@ export class Visualizers {
                 this.gpuParticles.render(audioData, metadata, deltaTime);
                 this.ctx.drawImage(this.particleCanvas, 0, 0, this.width, this.height);
             }
-        } else if (visualizerType === 'aiPsychedelicArt') {
-            // AI Psychedelic Art
-            if (this.aiArt) {
-                this.aiArt.render(audioData, metadata, deltaTime);
-            }
-        } else if (visualizerType === 'reactiveTypography') {
-            // Reactive Typography
-            if (this.typography) {
-                const params = this.paramControl.getParams('reactiveTypography');
-                this.typography.setParams(params);
-                this.typography.render(audioData, metadata, deltaTime);
-            }
-        } else if (visualizerType.startsWith('layered_')) {
-            // Layered presets
-            const presetName = visualizerType.replace('layered_', '');
-            this.renderLayeredPreset(presetName, audioData, metadata, deltaTime);
+        } else if (typeof visualizerType === 'string' && visualizerType.startsWith('shader_') && !this.shaderVisualizer?.gl) {
+            // Shader selected but WebGL is unavailable: fall back to a 2D mesh visualizer.
+            this.meshVisualizer.setVisualizer('wave');
+            this.meshVisualizer.render();
         } else if (this.fluidTypes.includes(visualizerType)) {
             // Fluid visualizers (WebGL2)
             this.fluidVisualizer.render(visualizerType, audioData, metadata);
@@ -433,9 +551,6 @@ export class Visualizers {
             // Mesh visualizers
             this.meshVisualizer.setVisualizer(visualizerType);
             this.meshVisualizer.render();
-        } else if (this.premiumTypes.includes(visualizerType)) {
-            // Premium visualizers
-            this.premiumVisualizer.render(visualizerType, audioData, metadata);
         } else {
             // Regular/legacy visualizers
             if (this.targetVisualizer && this.previousVisualizer && this.transitionProgress < 1) {
@@ -458,86 +573,11 @@ export class Visualizers {
 
         // Render beat effects on top of everything
         this.beatEffects.render(this.ctx);
+
+        this._applyUnifiedGrade(metadata);
         
         // Performance optimization - end frame
         this.performanceOptimizer.endFrame();
-    }
-
-    /**
-     * Render a layered preset combining multiple visualizers
-     */
-    renderLayeredPreset(presetName, audioData, metadata, deltaTime) {
-        const presets = {
-            psychedelicStack: [
-                { type: 'shader', shader: 'psychedelicWaves', blend: 'source-over', opacity: 1.0 },
-                { type: 'particles', blend: 'screen', opacity: 0.6 },
-                { type: 'typography', blend: 'overlay', opacity: 0.5 }
-            ],
-            cosmicDream: [
-                { type: 'shader', shader: 'hypnoticSpiral', blend: 'source-over', opacity: 1.0 },
-                { type: 'particles', blend: 'screen', opacity: 0.5 }
-            ],
-            electricVoid: [
-                { type: 'shader', shader: 'electricStorm', blend: 'source-over', opacity: 1.0 },
-                { type: 'particles', blend: 'screen', opacity: 0.7 }
-            ]
-        };
-
-        const layers = presets[presetName];
-        if (!layers) {
-            // Fallback
-            if (this.shaderVisualizer) {
-                this.shaderVisualizer.setShader('psychedelicWaves');
-                this.shaderVisualizer.render(audioData, metadata, deltaTime);
-                this.ctx.drawImage(this.shaderCanvas, 0, 0, this.width, this.height);
-            }
-            return;
-        }
-
-        // Clear canvas
-        this.ctx.fillStyle = '#000';
-        this.ctx.fillRect(0, 0, this.width, this.height);
-
-        // Render each layer
-        for (const layer of layers) {
-            this.ctx.save();
-            this.ctx.globalCompositeOperation = layer.blend;
-            this.ctx.globalAlpha = layer.opacity;
-
-            switch (layer.type) {
-                case 'shader':
-                    if (this.shaderVisualizer) {
-                        this.shaderVisualizer.setShader(layer.shader);
-                        this.shaderVisualizer.render(audioData, metadata, deltaTime);
-                        this.ctx.drawImage(this.shaderCanvas, 0, 0, this.width, this.height);
-                    }
-                    break;
-
-                case 'particles':
-                    if (this.gpuParticles) {
-                        // Clear particle canvas before rendering
-                        const pCtx = this.particleCanvas.getContext('2d');
-                        if (pCtx) pCtx.clearRect(0, 0, this.particleCanvas.width, this.particleCanvas.height);
-                        this.gpuParticles.render(audioData, metadata, deltaTime);
-                        this.ctx.drawImage(this.particleCanvas, 0, 0, this.width, this.height);
-                    }
-                    break;
-
-                case 'aiArt':
-                    if (this.aiArt) {
-                        this.aiArt.render(audioData, metadata, deltaTime);
-                    }
-                    break;
-
-                case 'typography':
-                    if (this.typography) {
-                        this.typography.render(audioData, metadata, deltaTime);
-                    }
-                    break;
-            }
-
-            this.ctx.restore();
-        }
     }
 
     renderMorphingTransition(audioData, metadata) {

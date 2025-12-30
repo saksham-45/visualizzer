@@ -83,8 +83,9 @@ export class ThreeJSVisualizer {
                 powerPreference: 'high-performance'
             });
 
-            const width = container.clientWidth;
-            const height = container.clientHeight;
+            // Use viewport dimensions; body/container client sizes can be 0 in some layouts.
+            const width = window.innerWidth;
+            const height = window.innerHeight;
 
             this.renderer.setSize(width, height);
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -124,7 +125,10 @@ export class ThreeJSVisualizer {
 
             window.addEventListener('resize', () => this.resize());
         } catch (error) {
-            console.error('[ThreeJSVisualizer] Init failed:', error);
+            const name = error?.name || 'Error';
+            const message = error?.message || String(error);
+            console.error('[ThreeJSVisualizer] Init failed:', name, message);
+            if (error?.stack) console.error(error.stack);
         }
     }
 
@@ -345,16 +349,20 @@ export class ThreeJSVisualizer {
 
         // 2. RGB Shift - Chromatic Aberration (Lens Imperfection)
         const rgbShiftPass = new ShaderPass(RGBShiftShader);
-        rgbShiftPass.uniforms['amount'].value = 0.002;
+        if (rgbShiftPass.uniforms && rgbShiftPass.uniforms['amount']) {
+            rgbShiftPass.uniforms['amount'].value = 0.002;
+        }
         this.composer.addPass(rgbShiftPass);
         this.rgbShiftPass = rgbShiftPass;
 
         // 3. Film Grain - Cinematic Feel
         const filmPass = new ShaderPass(FilmShader);
-        filmPass.uniforms['nIntensity'].value = 0.35;
-        filmPass.uniforms['sIntensity'].value = 0.15;
-        filmPass.uniforms['sCount'].value = 4096;
-        filmPass.uniforms['grayscale'].value = 0;
+        if (filmPass.uniforms) {
+            if (filmPass.uniforms['nIntensity']) filmPass.uniforms['nIntensity'].value = 0.35;
+            if (filmPass.uniforms['sIntensity']) filmPass.uniforms['sIntensity'].value = 0.15;
+            if (filmPass.uniforms['sCount']) filmPass.uniforms['sCount'].value = 4096;
+            if (filmPass.uniforms['grayscale']) filmPass.uniforms['grayscale'].value = 0;
+        }
         this.composer.addPass(filmPass);
         this.filmPass = filmPass;
 
@@ -530,14 +538,18 @@ export class ThreeJSVisualizer {
         if (this.rgbShiftPass) {
             // Clean, tight aberration only on strong beats
             const shift = beat > 0.8 ? 0.005 : 0.001;
-            this.rgbShiftPass.uniforms['amount'].value = THREE.MathUtils.lerp(this.rgbShiftPass.uniforms['amount'].value, shift, 0.2);
+            const u = this.rgbShiftPass.uniforms;
+            if (u && u['amount']) {
+                u['amount'].value = THREE.MathUtils.lerp(u['amount'].value, shift, 0.2);
+            }
         }
 
         if (this.filmPass) {
-            this.filmPass.uniforms['time'].value = time;
+            const u = this.filmPass.uniforms;
+            if (u && u['time']) u['time'].value = time;
             // Reduce grain for cleaner look
-            this.filmPass.uniforms['nIntensity'].value = 0.15;
-            this.filmPass.uniforms['sIntensity'].value = 0.05;
+            if (u && u['nIntensity']) u['nIntensity'].value = 0.15;
+            if (u && u['sIntensity']) u['sIntensity'].value = 0.05;
         }
 
         this.composer.render();

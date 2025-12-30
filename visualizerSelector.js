@@ -19,7 +19,7 @@ export class VisualizerSelector {
         this.allVisualizers = [
             // ⚡ Enhanced GPU Shaders (most impressive first)
             'shader_psychedelicWaves', 'shader_neonVortex', 'shader_kaleidoscope',
-            'shader_hypnoticSpiral', 'shader_electricStorm', 'shader_sacredGeometry',
+            'shader_hypnoticSpiral', 'shader_electricStorm',
             // 🌊 Premium Mercury/Fluid
             'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel',
             // ✨ Particles
@@ -119,8 +119,6 @@ export class VisualizerSelector {
         const reasons = {
             // ✨ Particles & AI
             'gpuParticles': '✨ Stellar Forge - 60,000 hyper-reactive sentient particles',
-            'aiPsychedelicArt': '🧠 Neural Dream - AI-generated hallucinatory landscapes',
-            'reactiveTypography': '🔡 Kinetic Verse - semantic rhythm-driven typography',
 
             // ⚡ Enhanced GPU Shaders
             'shader_psychedelicWaves': '🌈 Harmonic Flux - fluid GPU-accelerated wave interference',
@@ -128,14 +126,13 @@ export class VisualizerSelector {
             'shader_kaleidoscope': '💎 Prism Core - infinite shimmering geometric mirrors',
             'shader_hypnoticSpiral': '🌀 Trance state - deep recursive mathematical tunnel',
             'shader_electricStorm': '⚡ High Voltage - plasma discharge and electric arcs',
-            'shader_sacredGeometry': '📐 Monad - ancient geometry pulsed by pure energy',
 
             // 🌊 Premium Mercury/Fluid
             'mercuryOrbs': '💿 Liquid Mirror - fluid metal orbs with chromatic drift',
             'liquidMetal': '🔮 Ferrofluid - magnetically controlled metallic surface',
             'metallicNebula': '🌌 Star Dust - cosmic metallic dust in a gravity well',
             'liquidGeometry': '💎 Chrome Morph - shapeshifting liquid crystals',
-            'tunnel': '🕳️ Wormhole - infinite folding passage through space-time',
+            'tunnel': '🕳️ Wormhole (3D) - infinite folding passage through space-time',
 
             // 📚 Layered Masterpieces
             'layered_psychedelicStack': '📚 The God Stack - the ultimate multi-layered visual odyssey',
@@ -175,11 +172,10 @@ export class VisualizerSelector {
         const categories = {
             '⚡ Enhanced GPU': [
                 'shader_psychedelicWaves', 'shader_neonVortex', 'shader_kaleidoscope',
-                'shader_hypnoticSpiral', 'shader_electricStorm', 'shader_sacredGeometry'
+                'shader_hypnoticSpiral', 'shader_electricStorm'
             ],
-            '✨ Particles & AI': [
-                'gpuParticles', 'aiPsychedelicArt', 'reactiveTypography',
-                'layered_psychedelicStack', 'layered_cosmicDream', 'layered_electricVoid'
+            '✨ Particles': [
+                'gpuParticles'
             ],
             '🌊 Premium Fluid': [
                 'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel'

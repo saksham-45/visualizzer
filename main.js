@@ -1,17 +1,18 @@
 
 import { AudioCapture } from './audioCapture.js';
 import { AudioAnalyzer } from './audioAnalyzer.js';
-import { MeshVisualizers } from './meshVisualizers.js';
+import { Visualizers } from './visualizers.js';
 import { VisualizerSelector } from './visualizerSelector.js';
 
 class VisualizerApp {
     constructor() {
         this.audioCapture = new AudioCapture();
-        this.audioAnalyzer = null;
+        this.audioAnalyzer = new AudioAnalyzer(this.audioCapture);
         this.visualizers = null;
         this.visualizerSelector = new VisualizerSelector();
         this.animationId = null;
         this.isRunning = false;
+        this.isAnimating = false;
 
         this.uiHideTimeout = null;
         this.uiVisible = true;
@@ -26,6 +27,16 @@ class VisualizerApp {
         this.initializeElements();
         this.attachEventListeners();
         this.setupAutoHideUI();
+
+        // Always initialize and render visualizers so you see something immediately.
+        // Audio capture is still started/stopped via the Start/Stop buttons.
+        this.visualizers = new Visualizers(
+            this.canvas,
+            this.audioCapture,
+            this.audioAnalyzer
+        );
+        this.isAnimating = true;
+        this.animate();
     }
 
     initializeElements() {
@@ -250,34 +261,20 @@ class VisualizerApp {
 
             const sourceType = this.audioSourceSelect.value;
 
-            // Layer 1 logical flow: Attempt primary source
+            // Attempt primary source; if it fails, fall back to DEMO MODE automatically.
+            // This prevents the app from appearing "dead" when permissions/devices are missing.
             try {
                 await this.audioCapture.start(sourceType);
             } catch (captureError) {
-                console.warn('[LogicalAnalyzer] Primary audio source failed:', captureError);
+                const name = captureError?.name || 'Error';
+                const message = captureError?.message || String(captureError);
+                console.warn('[VisualizerApp] Audio start failed, falling back to demo mode:', name, message);
 
-                // Layer 3 Edge Case: Mic denied/unavailable -> Fallback to Demo Mode
-                if (confirm(`Audio Input Failed: ${captureError.message}\n\nSwitch to DEMO MODE with simulated audio?`)) {
-                    await this.audioCapture.start('demo');
-                    this.startBtn.textContent = 'Demo Mode';
-                } else {
-                    throw captureError; // User cancelled
-                }
+                await this.audioCapture.start('demo');
+                this.startBtn.textContent = 'Demo Mode';
             }
 
-            // Layer 2 State Management: Initialize core systems only after audio is secured
-            if (!this.audioAnalyzer) {
-                this.audioAnalyzer = new AudioAnalyzer(this.audioCapture);
-            }
-
-            if (!this.visualizers) {
-                const { Visualizers } = await import('./visualizers.js');
-                this.visualizers = new Visualizers(
-                    this.canvas,
-                    this.audioCapture,
-                    this.audioAnalyzer
-                );
-            }
+            // Core systems are initialized at boot; at this point we only start audio.
 
             // Set initial visualizer
             if (this.autoModeCheckbox.checked) {
@@ -288,8 +285,6 @@ class VisualizerApp {
             }
 
             this.isRunning = true;
-            this.animate();
-
             this.startBtn.disabled = true;
             this.stopBtn.disabled = false;
             // Only reset text if we didn't set it to 'Demo Mode' earlier
@@ -298,8 +293,10 @@ class VisualizerApp {
             }
 
         } catch (error) {
-            console.error('Fatal Start Error:', error);
-            alert(`Could not start visualizer: ${error.message}`);
+            const name = error?.name || 'Error';
+            const message = error?.message || String(error);
+            console.error('Fatal Start Error:', name, message, error);
+            alert(`Could not start visualizer: ${message}`);
             this.startBtn.disabled = false;
             this.startBtn.textContent = 'Start';
             this.stop(); // Ensure clean state
@@ -309,14 +306,10 @@ class VisualizerApp {
     stop() {
         this.isRunning = false;
 
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
-        }
-
         this.audioCapture.stop();
-        this.visualizers = null;
-        this.audioAnalyzer = null;
+
+        // Keep the render loop alive so you still see the idle visualizer.
+        // Do not null out visualizers/analyzer; they are needed for rendering.
 
         const ctx = this.canvas.getContext('2d');
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -336,13 +329,13 @@ class VisualizerApp {
     }
 
     animate() {
-        if (!this.isRunning) return;
+        if (!this.isAnimating) return;
 
         // Analyze audio (may be null if not started)
         const metadata = this.audioAnalyzer?.analyze();
 
-        // Auto-select visualizer if enabled - always use smooth transitions
-        if (this.autoModeCheckbox.checked && metadata && this.visualizers) {
+        // Auto-select visualizer only when audio is actually running
+        if (this.isRunning && this.autoModeCheckbox.checked && metadata && this.visualizers) {
             const selectedViz = this.visualizerSelector.selectVisualizer(metadata);
             // Always trigger transition if different (will handle smooth morphing)
             if (selectedViz !== this.visualizers.currentVisualizer) {
