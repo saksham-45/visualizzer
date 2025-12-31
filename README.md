@@ -1,138 +1,95 @@
-# Advanced Audio Visualizer
+# Visualizzer
 
-A comprehensive, Apple Music-style audio visualizer system that intelligently adapts to your audio in real-time.
+A real-time audio visualizer with intelligent, music-reactive visuals. Supports microphone and system audio with automatic visualizer selection.
+
+## Role of Mathematics
+
+This project is fundamentally mathematical—audio signals are transformed into visuals through:
+
+- **Fourier Analysis**: FFT converts time-domain audio to frequency spectra (2048-point transform)
+- **Signal Processing**: Smoothing constants, band energy extraction, and beat detection using statistical methods
+- **Geometry**: 2D/3D coordinate transformations, polar/cartesian conversions, and mesh deformations
+- **Complex Numbers**: Used in shaders for seamless rotation patterns (avoiding atan discontinuities)
+- **Linear Algebra**: Camera projections, mesh vertex transformations, and lighting calculations
+- **Trigonometry**: Spiral patterns, wave functions, and orbital camera movements
+- **Color Theory**: HSV↔RGB conversions for audio-reactive coloring
+- **Calculus**: Smooth interpolation functions for visual transitions
 
 ## Features
 
-###  Multiple Visualization Types
+- **Multiple Visualizers**: Waveforms, circles, bars, particles, spirals, spectrum rings, GPU shaders, and 3D fluid simulations
+- **Intelligent Selection**: AI-driven visualizer switching based on audio characteristics
+- **Audio Sources**: Microphone or system audio capture
+- **Smooth Transitions**: Morphing between visualizers
+- **Performance Optimized**: Adaptive quality and hardware acceleration
 
-1. **Wave Form** - Classic waveform visualization, perfect for rhythmic content
-2. **Circle Wave** - Circular wave derived from audio, ideal for bass-heavy tracks
-3. **Frequency Bars** - Bar chart showing frequency spectrum, great for complex audio
-4. **Particle System** - Dynamic particles responding to audio, best for bright, high-frequency content
-5. **Spiral Wave** - Flowing spiral visualization, excellent for melodic music
-6. **Spectrum Circle** - Circular frequency spectrum, optimal for full-spectrum audio
+## Quick Start
 
-### Intelligent Visualizer Selection
+```bash
+python3 server.py
+# Open http://localhost:8000
+# Click Start and grant audio permissions
+```
 
-The system analyzes your audio in real-time and automatically selects the best visualizer based on:
+## Visualizer Types
 
-- **Frequency Distribution** - Bass, mid, and treble balance
-- **Spectral Centroid** - Brightness of the audio
-- **Spectral Spread** - Width of frequency distribution
-- **Amplitude & Loudness** - Volume characteristics
-- **Energy Bands** - Energy across 7 frequency bands (sub-bass to brilliance)
-- **Rhythm Analysis** - Beat detection and variance
+### 2D Canvas
+- Wave, Circle, Bars, Particles, Spiral, Spectrum
+- Mesh-based morphing visualizers
 
-### Audio Input Options
+### GPU Shaders
+- Psychedelic Waves, Neon Vortex, Kaleidoscope
+- Electric Storm, Sacred Geometry, Hypnotic Spiral
 
-- **Microphone** - Real-time audio from your microphone
-- **System Audio** - Capture audio from your system (requires browser permission to share tab/window audio)
-
-###  Smooth Transitions
-
-Visualizers transition smoothly between each other with fade effects, creating a seamless experience.
-
-## How It Works
-
-### Audio Capture (`audioCapture.js`)
-
-Uses the Web Audio API to capture audio with:
-- High-resolution FFT (2048 samples)
-- Low-latency processing
-- Smooth time constants for fluid visualization
-
-### Audio Analysis (`audioAnalyzer.js`)
-
-Performs real-time analysis to extract:
-- **Amplitude** - Overall volume level (0-1)
-- **Loudness** - Decibel measurement
-- **Dominant Frequency** - Peak frequency in the spectrum
-- **Frequency Distribution** - Low/mid/high balance
-- **Energy Bands** - 7-band frequency analysis
-- **Spectral Centroid** - Brightness indicator
-- **Spectral Spread** - Frequency width
-- **Rhythm** - Beat detection and stability
-
-### Visualizer Selector (`visualizerSelector.js`)
-
-Intelligently scores each visualizer based on audio characteristics:
-
-- **Wave**: Best for rhythmic, moderate-dynamics content
-- **Circle**: Optimal for bass-heavy tracks
-- **Bars**: Ideal for complex, multi-band frequency content
-- **Particles**: Perfect for bright, high-frequency audio
-- **Spiral**: Excellent for stable, melodic content
-- **Spectrum**: Best for full-spectrum, balanced audio
-
-The selector prevents rapid switching by requiring a minimum change threshold.
-
-### Visualizers (`visualizers.js`)
-
-Each visualizer:
-- Renders in real-time at 60fps
-- Uses gradient colors based on audio metadata
-- Adapts size/intensity based on amplitude
-- Smoothly transitions when switching
-
-## Usage
-
-1. Open `index.html` in a modern web browser (Chrome, Firefox, Edge, Safari)
-2. Click "Start" to begin
-3. Grant microphone permissions when prompted
-4. Toggle "Auto-Select Visualizer" to enable intelligent selection
-5. Or manually select a visualizer from the dropdown
-
-### For System Audio
-
-1. Select "System Audio" from the dropdown
-2. Click "Start"
-3. When prompted, select the tab/window you want to capture audio from
-4. The visualizer will display the audio from that source
-
-## Technical Details
-
-### Performance Optimizations
-
-- High-resolution FFT (2048) for smooth visualization
-- Efficient canvas rendering with hardware acceleration
-- Smoothing time constants to reduce jitter
-- History-based analysis to prevent rapid switching
-
-### Browser Compatibility
-
-- Chrome/Edge: Full support (including system audio via screen capture)
-- Firefox: Full support (microphone only)
-- Safari: Full support (microphone only)
-
-### Audio Analysis Parameters
-
-- **FFT Size**: 2048 samples
-- **Sample Rate**: 44.1 kHz
-- **Smoothing**: 0.8 (80% smoothing)
-- **Frequency Bins**: 1024
+### 3D Fluid (Three.js)
+- Mercury Orbs, Liquid Metal, Metallic Nebula
+- Liquid Geometry, Tunnel
 
 ## Architecture
 
 ```
 index.html
-├── audioCapture.js      - Audio input handling
-├── audioAnalyzer.js     - Real-time audio analysis
-├── visualizers.js       - All visualization types
-├── visualizerSelector.js - Intelligent selection logic
-└── main.js              - Application orchestration
+├── audioCapture.js      # Audio input (mic/system)
+├── audioAnalyzer.js     # Real-time analysis
+├── visualizers.js       # Main render loop & 2D visualizers
+├── shaderVisualizers.js # WebGL shaders
+├── ThreeJSVisualizer.js # 3D fluid visualizers
+├── fluidVisualizers.js  # 3D wrapper
+├── meshVisualizers.js   # Mesh morphing
+├── gpuParticles.js      # GPU particle system
+├── visualizerSelector.js # Intelligent selection
+├── musicIntelligence.js # Predictive analysis
+├── beatEffects.js       # Beat reactive overlays
+├── performanceOptimizer.js # Adaptive quality
+└── main.js              # App orchestration
 ```
 
-## Future Enhancements
+## Audio Analysis
 
-- Audio file upload support
-- Custom visualizer themes
-- Recording/export functionality
-- 3D visualizations
-- VR/AR support
-- Machine learning-based visualizer selection
+- **FFT**: 2048 samples, 44.1kHz
+- **Features**: Amplitude, spectral centroid, energy bands (sub-bass to brilliance), rhythm/beat detection
+- **Smoothing**: 80% to reduce jitter
+
+## Browser Support
+
+- Chrome/Edge: Full (mic + system audio)
+- Firefox/Safari: Mic only
+
+## Controls
+
+- Start/Stop audio capture
+- Auto-select vs manual visualizer
+- Settings panel for parameters
+- Fullscreen mode
+
+## Technical Notes
+
+- Uses Web Audio API & WebGL2
+- Fixed viewport sizing for consistent rendering
+- No-cache headers for development
+- Graceful fallbacks for missing features
 
 ## License
 
-MIT License - Feel free to use and modify!
+MIT
 
