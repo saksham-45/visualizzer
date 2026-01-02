@@ -574,7 +574,16 @@ export class Visualizers {
         // Render beat effects on top of everything
         this.beatEffects.render(this.ctx);
 
-        this._applyUnifiedGrade(metadata);
+        // IMPORTANT: Three.js fluid visualizers render behind this 2D canvas.
+        // The unified grade includes vignette/multiply overlays that would darken
+        // (and effectively hide) the 3D layer. Three.js already has its own post FX.
+        const isFluid = this.fluidTypes.includes(visualizerType);
+        const isMorphingFromFluid = this._morphingFromFluid || false;
+        if (!isFluid && !isMorphingFromFluid) {
+            this._applyUnifiedGrade(metadata);
+        }
+        // Reset morphing flag each frame
+        this._morphingFromFluid = false;
         
         // Performance optimization - end frame
         this.performanceOptimizer.endFrame();
@@ -603,6 +612,11 @@ export class Visualizers {
             this.ctx.globalAlpha = 1;
             return;
         }
+
+        // IMPORTANT: If either side is a fluid visualizer, skip unified grade to avoid
+        // darkening the 3D layer during crossfade.
+        const shouldSkipGrade = this.fluidTypes.includes(from) || this.fluidTypes.includes(to);
+        this._morphingFromFluid = shouldSkipGrade;
 
         this.renderMorphedPoints(fromPoints, toPoints, t, metadata);
     }

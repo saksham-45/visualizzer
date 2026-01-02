@@ -95,8 +95,10 @@ export class FluidVisualizers {
             this.threeVisualizer.update(metadata);
         }
 
-        // Clear 2D canvas to transparent so 3D shows through
+        // Clear 2D canvas to fully transparent so 3D shows through
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Ensure the 2D canvas stays transparent (no hidden fills later)
+        this.canvas.style.backgroundColor = 'transparent';
 
         // DAMPENED: Trigger beat effects less frequently in 3D to maintain stability
         const now = Date.now();

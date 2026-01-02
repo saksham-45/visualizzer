@@ -41,6 +41,7 @@ export class MeshVisualizers {
         this.particles = [];
         this.maxParticles = 30;
         this.meltingDisturbances = new Map();
+        this.beatDecay = 0; // Fix: Initialize beatDecay for visualizers
 
         this.lastAudioCharacteristics = null;
         this.lastTransitionTime = 0;
@@ -76,10 +77,10 @@ export class MeshVisualizers {
 
     resize() {
         const rect = this.canvas.getBoundingClientRect();
-        
+
         // CRITICAL: Reset transform before setting new dimensions to prevent accumulation
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        
+
         this.canvas.width = rect.width * window.devicePixelRatio;
         this.canvas.height = rect.height * window.devicePixelRatio;
         this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -228,6 +229,14 @@ export class MeshVisualizers {
         this.time += deltaTime;
 
         const metadata = this.audioAnalyzer.analyze() || { amplitude: 0, energyBands: {}, rhythm: {} };
+
+        // Fix: Update beatDecay for Kaleidoscope
+        if (metadata.rhythm?.beat) {
+            this.beatDecay = 1.0;
+        } else {
+            this.beatDecay *= 0.94;
+        }
+
         const visualizerType = this.targetVisualizer || this.currentVisualizer || 'wave';
 
         try {
@@ -1214,53 +1223,62 @@ export class MeshVisualizers {
     }
 
     /**
-     * Kaleidoscope - Mirror/symmetry effect
+     * Kaleidoscope - Mirror/symmetry effect - MAX EXPANSION
      */
     renderKaleidoscope(audioData, metadata) {
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const segments = 8; // Number of mirror segments
+        const segments = 50; // Massively increased for dense coverage
         const segmentAngle = (Math.PI * 2) / segments;
+        // Use full screen diagonal for total coverage
+        const maxRadius = Math.hypot(this.width, this.height) / 2;
 
         // Draw base pattern in one segment
         this.ctx.save();
         this.ctx.translate(centerX, centerY);
-        this.ctx.rotate(this.time * 0.5);
+        this.ctx.rotate(this.time * 0.25);
 
         for (let seg = 0; seg < segments; seg++) {
             this.ctx.save();
             this.ctx.rotate(seg * segmentAngle);
 
-            // Draw pattern
-            const points = 100;
+            // Dynamic petal length with beat-synced "explosions"
+            const petalLengthFactor = 0.3 + (Math.sin(seg * 0.8 + this.time * 1.5) * 0.4) + (this.beatDecay * 0.3);
+
+            // Draw pattern points
+            const points = 60; // Slightly reduced points per segment to maintain performance with 50 segments
             for (let i = 0; i < points; i++) {
                 const angle = (i / points) * segmentAngle;
                 const freqIndex = Math.floor((i / points) * bufferLength);
                 const energy = frequencyData[freqIndex] / 255;
-                const radius = 50 + energy * Math.min(this.width, this.height) * 0.4;
+
+                // Full screen radius with explosive expansion
+                const radius = 20 + energy * maxRadius * petalLengthFactor;
 
                 const x = Math.cos(angle) * radius;
                 const y = Math.sin(angle) * radius;
 
-                const hue = (seg / segments) * 360 + this.time * 50 + energy * 60;
-                const size = 3 + energy * 15;
+                // Fast neon cycling
+                const hue = (seg * 7.2 + i * 2.5 + this.time * 50 + energy * 90) % 360;
+                const size = 1.5 + energy * 15;
 
-                this.ctx.fillStyle = `hsla(${hue}, 100%, ${50 + energy * 30}%, ${0.7 + energy * 0.3})`;
+                this.ctx.fillStyle = `hsla(${hue}, 100%, ${50 + energy * 45}%, ${0.5 + energy * 0.5})`;
                 this.ctx.beginPath();
                 this.ctx.arc(x, y, size, 0, Math.PI * 2);
                 this.ctx.fill();
             }
 
-            // Draw connecting lines
-            this.ctx.strokeStyle = `hsla(${(seg / segments) * 360 + this.time * 50}, 100%, 60%, 0.3)`;
-            this.ctx.lineWidth = 2;
+            // Connecting lines with glowing effects
+            const lineHue = (seg * 7.2 + this.time * 50) % 360;
+            this.ctx.strokeStyle = `hsla(${lineHue}, 100%, 70%, ${0.3 + this.beatDecay * 0.4})`;
+            this.ctx.lineWidth = 1 + this.beatDecay * 2;
             this.ctx.beginPath();
             for (let i = 0; i < points; i++) {
                 const angle = (i / points) * segmentAngle;
                 const freqIndex = Math.floor((i / points) * bufferLength);
                 const energy = frequencyData[freqIndex] / 255;
-                const radius = 50 + energy * Math.min(this.width, this.height) * 0.4;
+                const radius = 20 + energy * maxRadius * petalLengthFactor;
                 const x = Math.cos(angle) * radius;
                 const y = Math.sin(angle) * radius;
                 if (i === 0) this.ctx.moveTo(x, y);
@@ -1270,7 +1288,6 @@ export class MeshVisualizers {
 
             this.ctx.restore();
         }
-
         this.ctx.restore();
     }
 
@@ -1698,54 +1715,60 @@ export class MeshVisualizers {
     }
 
     /**
-     * Spiral Trails - Particles leaving spiral trails
+     * Spiral Trails - Particles leaving spiral trails - MAX EXPANSION
      */
     renderSpiralTrails(audioData, metadata) {
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;
         const centerY = this.height / 2;
-        const maxRadius = Math.min(this.width, this.height) * 0.5;
-        const numTrails = 12;
-        const trailLength = 50;
+        // Use full screen diagonal for total coverage
+        const maxRadius = Math.hypot(this.width, this.height) / 2;
+        const numTrails = 80; // Massively increased
+        const trailLength = 65;
 
         for (let trail = 0; trail < numTrails; trail++) {
             const trailOffset = (trail / numTrails) * Math.PI * 2;
             const freqIndex = Math.floor((trail / numTrails) * bufferLength);
             const energy = frequencyData[freqIndex] / 255;
 
-            const headAngle = this.time * 2.5 + trailOffset;
-            const headRadius = maxRadius * (0.2 + energy * 0.9);
+            // Tighter spiral wrapping
+            const trailRadiusFactor = 0.2 + (trail / numTrails) * 0.8;
+            const headAngle = this.time * 2.2 + trailOffset;
+            const headRadius = maxRadius * trailRadiusFactor * (0.25 + energy * 0.75);
 
             for (let i = 0; i < trailLength; i++) {
                 const age = i / trailLength;
-                const pastAngle = headAngle - age * Math.PI * 0.6;
-                const pastRadius = headRadius * (1 - age * 0.25);
+                const pastAngle = headAngle - age * Math.PI * 1.2; // Tighter wrap
+                const pastRadius = headRadius * (1 - age * 0.15);
 
                 const waveIndex = Math.floor(age * bufferLength);
-                const wave = (timeData[waveIndex] / 128.0 - 1) * 40;
+                const wave = (timeData[waveIndex] / 128.0 - 1) * 60; // More violent waves
 
                 const x = centerX + Math.cos(pastAngle) * (pastRadius + wave);
                 const y = centerY + Math.sin(pastAngle) * (pastRadius + wave);
 
-                const size = Math.abs((1 - age) * (6 + energy * 20));
-                const alpha = (1 - age) * (0.6 + energy * 0.4);
-                const hue = (trail * 30 + age * 40 + this.time * 50) % 360;
+                const size = Math.abs((1 - age) * (3 + energy * 18));
+                const alpha = (1 - age) * (0.4 + energy * 0.6);
 
-                this.ctx.fillStyle = `hsla(${hue}, 100%, ${55 + energy * 35}%, ${alpha})`;
+                // Neon palette with fast cycling
+                const hue = (trail * 4.5 + age * 60 + this.time * 60) % 360;
+
+                this.ctx.fillStyle = `hsla(${hue}, 100%, ${50 + energy * 45}%, ${alpha})`;
                 this.ctx.beginPath();
                 this.ctx.arc(x, y, size, 0, Math.PI * 2);
                 this.ctx.fill();
             }
 
+            // Glowing head
             const headX = centerX + Math.cos(headAngle) * headRadius;
             const headY = centerY + Math.sin(headAngle) * headRadius;
-            const headHue = (trail * 30 + this.time * 50) % 360;
+            const headHue = (trail * 4.5 + this.time * 60) % 360;
 
-            this.ctx.fillStyle = `hsla(${headHue}, 100%, 85%, 1)`;
-            this.ctx.shadowColor = `hsla(${headHue}, 100%, 70%, 1)`;
-            this.ctx.shadowBlur = 25;
+            this.ctx.fillStyle = `hsla(${headHue}, 100%, 90%, 1)`;
+            this.ctx.shadowColor = `hsla(${headHue}, 100%, 75%, 1)`;
+            this.ctx.shadowBlur = 15;
             this.ctx.beginPath();
-            this.ctx.arc(headX, headY, 10 + energy * 15, 0, Math.PI * 2);
+            this.ctx.arc(headX, headY, 5 + energy * 12, 0, Math.PI * 2);
             this.ctx.fill();
             this.ctx.shadowBlur = 0;
         }
