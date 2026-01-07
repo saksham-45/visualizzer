@@ -558,7 +558,7 @@ export class ThreeJSVisualizer {
             if (this.godRays) this.godRays.forEach(mesh => mesh.visible = false);
             
             if (!this.tunnelGroup) {
-                this.createTunnel();
+            this.createTunnel();
             } else {
                 this.tunnelGroup.visible = true;
                 // Reset tunnel position for fresh start
@@ -946,22 +946,22 @@ export class ThreeJSVisualizer {
 
         // ========== NEON RINGS - Many vibrant rings for infinity effect ==========
         this.tunnelRings = [];
-        const ringCount = 100; // Many rings for seamless look
-        const ringSpacing = 20;
+        const ringCount = 120; // More rings for seamless look
+        const ringSpacing = 16; // Closer spacing
         
         for (let i = 0; i < ringCount; i++) {
-            // Vibrant rainbow colors
+            // Vibrant saturated rainbow colors
             const hue = (i / ringCount) % 1;
-            const color = new THREE.Color().setHSL(hue, 1.0, 0.6);
+            const color = new THREE.Color().setHSL(hue, 1.0, 0.55); // High saturation, good lightness
             
-            // Thick glowing rings
-            const ringGeo = new THREE.TorusGeometry(radius - 0.5, 0.15, 16, 64);
+            // Thick glowing rings - very visible
+            const ringGeo = new THREE.TorusGeometry(radius - 0.3, 0.25, 16, 64);
             const ringMat = new THREE.MeshBasicMaterial({
                 color: color,
-                transparent: true,
-                opacity: 0.9,
-                blending: THREE.AdditiveBlending
-            });
+            transparent: true,
+                opacity: 1.0,
+            blending: THREE.AdditiveBlending
+        });
             
             const ring = new THREE.Mesh(ringGeo, ringMat);
             ring.position.z = -i * ringSpacing;
@@ -979,18 +979,18 @@ export class ThreeJSVisualizer {
 
         // ========== SPIRAL LINES - Trippy rotating spirals ==========
         this.spiralLines = [];
-        const spiralCount = 8;
+        const spiralCount = 12; // More spirals for denser effect
         for (let s = 0; s < spiralCount; s++) {
             const points = [];
-            const spiralTurns = 20;
-            const spiralLength = 1500;
-            const pointCount = 500;
+            const spiralTurns = 25;
+            const spiralLength = 1800;
+            const pointCount = 600;
             
             for (let i = 0; i < pointCount; i++) {
                 const t = i / pointCount;
                 const angle = (s / spiralCount) * Math.PI * 2 + t * spiralTurns * Math.PI * 2;
                 const z = -t * spiralLength;
-                const r = radius - 1;
+                const r = radius - 0.8;
                 points.push(new THREE.Vector3(
                     Math.cos(angle) * r,
                     Math.sin(angle) * r,
@@ -1000,10 +1000,11 @@ export class ThreeJSVisualizer {
             
             const spiralGeo = new THREE.BufferGeometry().setFromPoints(points);
             const spiralMat = new THREE.LineBasicMaterial({
-                color: new THREE.Color().setHSL(s / spiralCount, 1.0, 0.7),
+                color: new THREE.Color().setHSL(s / spiralCount, 1.0, 0.65), // Brighter
                 transparent: true,
-                opacity: 0.6,
-                blending: THREE.AdditiveBlending
+                opacity: 0.85, // More visible
+                blending: THREE.AdditiveBlending,
+                linewidth: 2
             });
             
             const spiral = new THREE.Line(spiralGeo, spiralMat);
@@ -1015,16 +1016,16 @@ export class ThreeJSVisualizer {
         // ========== PARTICLE STARS - Flying through space ==========
         this.createHyperspaceParticles();
 
-        // ========== CENTRAL GLOW - Light at the end ==========
-        const glowGeo = new THREE.SphereGeometry(3, 32, 32);
+        // ========== CENTRAL GLOW - Bright light at the end ==========
+        const glowGeo = new THREE.SphereGeometry(5, 32, 32);
         const glowMat = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+            color: 0x00ffff, // Cyan glow
             transparent: true,
-            opacity: 0.8,
+            opacity: 1.0,
             blending: THREE.AdditiveBlending
         });
         this.centerGlow = new THREE.Mesh(glowGeo, glowMat);
-        this.centerGlow.position.z = -800;
+        this.centerGlow.position.z = -600; // Closer for more visibility
         this.tunnelGroup.add(this.centerGlow);
         
         // Camera starts at origin looking down -Z
@@ -1041,7 +1042,7 @@ export class ThreeJSVisualizer {
         const positions = new Float32Array(particleCount * 3);
         const colors = new Float32Array(particleCount * 3);
         const sizes = new Float32Array(particleCount);
-        
+
         for (let i = 0; i < particleCount; i++) {
             // Distribute in a cylinder around the camera path
             const angle = Math.random() * Math.PI * 2;
@@ -1073,7 +1074,7 @@ export class ThreeJSVisualizer {
             depthWrite: false,
             map: this.createSoftParticleTexture()
         });
-        
+
         this.hyperspaceParticles = new THREE.Points(geometry, material);
         this.tunnelGroup.add(this.hyperspaceParticles);
     }
@@ -1081,7 +1082,7 @@ export class ThreeJSVisualizer {
     updateTunnel(time, bass, mid, high, amp) {
         if (!this.tunnelGroup || !this.camera) {
             if (!this.tunnelGroup) {
-                this.createTunnel();
+            this.createTunnel();
             }
             return;
         }
@@ -1115,7 +1116,7 @@ export class ThreeJSVisualizer {
         this.camera.position.y = tilt * (1 + clampedMid * 0.3);
 
         // ========== NEON RINGS - INFINITE LOOP ==========
-        const ringSpacing = 20;
+        const ringSpacing = 16; // Match createTunnel
         const totalRingDistance = this.tunnelRings.length * ringSpacing;
         
         if (this.tunnelRings) {
@@ -1124,47 +1125,47 @@ export class ThreeJSVisualizer {
                 let ringZ = ring.userData.baseZ - (this.tunnelZ % totalRingDistance);
                 
                 // Wrap rings that pass behind camera
-                while (ringZ > 50) {
+                while (ringZ > 30) {
                     ringZ -= totalRingDistance;
                 }
-                while (ringZ < -totalRingDistance + 50) {
+                while (ringZ < -totalRingDistance + 30) {
                     ringZ += totalRingDistance;
                 }
                 
                 ring.position.z = ringZ;
                 
-                // Distance-based effects
+                // Distance-based effects - closer rings are brighter
                 const distFromCamera = Math.abs(ringZ);
-                const proximityFade = Math.max(0.1, 1 - distFromCamera / 500);
+                const proximityFade = Math.max(0.2, 1 - distFromCamera / 400);
                 
-                // VIBRANT COLORS - Rainbow cycling with music
-                const hue = (ring.userData.hue + time * 0.1 + clampedHigh * 0.3) % 1;
-                ring.material.color.setHSL(hue, 1.0, 0.65);
+                // VIBRANT COLORS - Fast rainbow cycling with music
+                const hue = (ring.userData.hue + time * 0.15 + clampedHigh * 0.4) % 1;
+                ring.material.color.setHSL(hue, 1.0, 0.6); // Saturated and bright
                 
-                // Opacity pulses with beat
-                const beatPulse = this.beatDecay * 0.4;
-                const basePulse = Math.sin(time * 4 + i * 0.3) * 0.15;
-                ring.material.opacity = Math.min(1.0, 0.5 + proximityFade * 0.4 + beatPulse + basePulse + clampedBass * 0.2);
+                // Opacity pulses with beat - always visible
+                const beatPulse = this.beatDecay * 0.5;
+                const basePulse = Math.sin(time * 5 + i * 0.2) * 0.1;
+                ring.material.opacity = Math.min(1.0, 0.6 + proximityFade * 0.3 + beatPulse + basePulse + clampedBass * 0.15);
                 
-                // Scale pulse on beats
-                const scalePulse = 1 + this.beatDecay * 0.15 + clampedBass * 0.1;
+                // Scale pulse on beats - more dramatic
+                const scalePulse = 1 + this.beatDecay * 0.2 + clampedBass * 0.15;
                 ring.scale.setScalar(scalePulse);
                 
-                // Rings rotate with music
-                ring.rotation.z += (0.01 + clampedHigh * 0.02) * (i % 2 === 0 ? 1 : -1);
+                // Rings rotate with music - faster
+                ring.rotation.z += (0.015 + clampedHigh * 0.025) * (i % 2 === 0 ? 1 : -1);
             });
         }
 
         // ========== SPIRAL LINES - ROTATING ==========
         if (this.spiralLines) {
             this.spiralLines.forEach((spiral, i) => {
-                // Rotate spirals with music
-                spiral.rotation.z += 0.005 + clampedBass * 0.01;
+                // Rotate spirals with music - faster rotation
+                spiral.rotation.z += 0.008 + clampedBass * 0.015;
                 
-                // Color cycling
-                const hue = (i / this.spiralLines.length + time * 0.05) % 1;
-                spiral.material.color.setHSL(hue, 1.0, 0.7);
-                spiral.material.opacity = 0.4 + clampedMid * 0.3 + this.beatDecay * 0.2;
+                // Fast color cycling - psychedelic
+                const hue = (i / this.spiralLines.length + time * 0.08) % 1;
+                spiral.material.color.setHSL(hue, 1.0, 0.65);
+                spiral.material.opacity = 0.5 + clampedMid * 0.35 + this.beatDecay * 0.25;
             });
         }
 
