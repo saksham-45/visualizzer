@@ -523,6 +523,38 @@ export class ThreeJSVisualizer {
         }
 
         if (mode === 'tunnel' || mode === 'depthlines') {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:setMode:tunnel',message:'Setting tunnel mode',data:{mode,tunnelGroupExists:!!this.tunnelGroup,tunnelMeshExists:!!this.tunnelMesh},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            
+            // CRITICAL: Set black background for tunnel mode
+            this.scene.background = new THREE.Color(0x000000);
+            
+            // CRITICAL: Add tunnel-specific lighting
+            if (!this.tunnelLight) {
+                // Ambient light so tunnel walls are visible
+                this.tunnelAmbient = new THREE.AmbientLight(0x4466ff, 0.5);
+                this.scene.add(this.tunnelAmbient);
+                
+                // Point light that follows the camera
+                this.tunnelLight = new THREE.PointLight(0x00aaff, 2.0, 100);
+                this.scene.add(this.tunnelLight);
+                
+                // Secondary light for depth
+                this.tunnelLight2 = new THREE.PointLight(0xff44aa, 1.5, 80);
+                this.scene.add(this.tunnelLight2);
+            }
+            // Enable tunnel lights
+            if (this.tunnelAmbient) this.tunnelAmbient.visible = true;
+            if (this.tunnelLight) this.tunnelLight.visible = true;
+            if (this.tunnelLight2) this.tunnelLight2.visible = true;
+            
+            // Hide mercury mesh
+            if (this.mercuryMesh) this.mercuryMesh.visible = false;
+            if (this.innerGlow) this.innerGlow.visible = false;
+            this.drops.forEach(d => d.mesh.visible = false);
+            if (this.godRays) this.godRays.forEach(mesh => mesh.visible = false);
+            
             if (!this.tunnelGroup) {
                 this.createTunnel();
             } else {
@@ -541,6 +573,10 @@ export class ThreeJSVisualizer {
             }
         } else if (this.tunnelGroup) {
             this.tunnelGroup.visible = false;
+            // Hide tunnel lights when not in tunnel mode
+            if (this.tunnelAmbient) this.tunnelAmbient.visible = false;
+            if (this.tunnelLight) this.tunnelLight.visible = false;
+            if (this.tunnelLight2) this.tunnelLight2.visible = false;
         }
     }
 
@@ -867,6 +903,9 @@ export class ThreeJSVisualizer {
     }
 
     createTunnel() {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:createTunnel:entry',message:'createTunnel called',data:{alreadyExists:!!this.tunnelGroup,hasScene:!!this.scene,hasCamera:!!this.camera},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         if (this.tunnelGroup) return;
 
         this.tunnelGroup = new THREE.Group();
@@ -912,35 +951,33 @@ export class ThreeJSVisualizer {
 
         const geometry = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius, radialSegments, closed);
 
-        // Enhanced material with scrolling texture for speed feel
+        // Enhanced material - VISIBLE and realistic tunnel
         const noiseMap = this.createNoiseTexture();
-        this.tunnelMaterial = new THREE.MeshPhysicalMaterial({
-            color: 0x4a4a7a, // Darker base color (not bright purple)
-            emissive: 0x1a1a3a, // Darker emissive
-            emissiveIntensity: 0.5, // Lower initial emissive
-            metalness: 0.8,
-            roughness: 0.15,
-            transmission: 0.3,
-            thickness: 3.0,
-            side: THREE.BackSide,
+        this.tunnelMaterial = new THREE.MeshStandardMaterial({
+            color: 0x2244aa, // Visible blue color
+            emissive: 0x1133ff, // Strong blue glow
+            emissiveIntensity: 0.8, // Visible glow
+            metalness: 0.9,
+            roughness: 0.2,
+            side: THREE.BackSide, // See inside the tunnel
             map: noiseMap,
-            transparent: true,
-            opacity: 0.85,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-            // Performance optimizations
-            flatShading: false
+            transparent: false, // Solid tunnel walls
+            depthWrite: true,
+            depthTest: true
         });
 
         this.tunnelMesh = new THREE.Mesh(geometry, this.tunnelMaterial);
         this.tunnelGroup.add(this.tunnelMesh);
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:createTunnel:meshCreated',message:'Tunnel mesh created',data:{meshExists:!!this.tunnelMesh,curvePointsCount:this.tunnelPoints?.length,firstPoint:this.tunnelPoints?.[0],lastPoint:this.tunnelPoints?.[this.tunnelPoints.length-1],tunnelU:this.tunnelU},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
 
-        // Outer glow layer - DARKER for controlled brightness
-        const outerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius + 0.8, radialSegments, closed);
+        // Outer glow layer - visible neon glow
+        const outerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius + 1.0, radialSegments, closed);
         const outerMat = new THREE.MeshBasicMaterial({
-            color: 0x3a3a6a, // Darker outer glow
+            color: 0x4488ff, // Bright blue glow
             transparent: true,
-            opacity: 0.12, // Reduced opacity
+            opacity: 0.4,
             side: THREE.BackSide,
             blending: THREE.AdditiveBlending,
             depthWrite: false
@@ -948,12 +985,12 @@ export class ThreeJSVisualizer {
         this.tunnelOuterMesh = new THREE.Mesh(outerGeo, outerMat);
         this.tunnelGroup.add(this.tunnelOuterMesh);
         
-        // Additional inner light layer - CONTROLLED brightness
-        const innerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius - 1.5, radialSegments, closed);
+        // Inner neon ring layer - creates depth and speed lines
+        const innerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius - 0.5, radialSegments, closed);
         const innerMat = new THREE.MeshBasicMaterial({
-            color: 0x6a6a9a, // Subtle inner glow (not bright white)
+            color: 0x00ffff, // Cyan inner glow
             transparent: true,
-            opacity: 0.08, // Lower opacity
+            opacity: 0.3,
             side: THREE.BackSide,
             blending: THREE.AdditiveBlending,
             depthWrite: false
@@ -1062,7 +1099,13 @@ export class ThreeJSVisualizer {
     }
 
     updateTunnel(time, bass, mid, high, amp) {
+        // #region agent log
+        if (this._frame % 60 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:entry',message:'updateTunnel called',data:{frame:this._frame,hasTunnelGroup:!!this.tunnelGroup,hasTunnelCurve:!!this.tunnelCurve,hasTunnelMesh:!!this.tunnelMesh,tunnelGroupVisible:this.tunnelGroup?.visible,tunnelU:this.tunnelU,bass,mid,high,amp},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{}); }
+        // #endregion
         if (!this.tunnelGroup || !this.tunnelCurve || !this.tunnelBasePoints || !this.camera) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:earlyReturn',message:'Early return - missing dependencies',data:{hasTunnelGroup:!!this.tunnelGroup,hasTunnelCurve:!!this.tunnelCurve,hasBasePoints:!!this.tunnelBasePoints,hasCamera:!!this.camera},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             if (!this.tunnelGroup) {
                 this.createTunnel();
             }
@@ -1206,6 +1249,22 @@ export class ThreeJSVisualizer {
 
         // Use THREE.js built-in lookAt for proper orientation
         this.camera.lookAt(lookAtPoint);
+        
+        // CRITICAL: Move tunnel lights with camera for proper illumination
+        if (this.tunnelLight) {
+            this.tunnelLight.position.copy(this.camera.position);
+            // Offset slightly forward to light the path ahead
+            this.tunnelLight.position.z -= 20;
+        }
+        if (this.tunnelLight2) {
+            this.tunnelLight2.position.copy(this.camera.position);
+            // Offset behind camera for rear illumination
+            this.tunnelLight2.position.z += 30;
+        }
+        
+        // #region agent log
+        if (this._frame % 60 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:cameraSet',message:'Camera position set',data:{tunnelU:this.tunnelU,camPoint:{x:camPoint.x,y:camPoint.y,z:camPoint.z},lookAtPoint:{x:lookAtPoint.x,y:lookAtPoint.y,z:lookAtPoint.z},cameraPos:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},cameraFov:this.camera.fov,sceneBackground:this.scene?.background?.getHexString?.()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D,F,G'})}).catch(()=>{}); }
+        // #endregion
 
         // ========== CAMERA ROLL - MINIMAL ==========
         // Subtle roll based on curve direction - REDUCED
@@ -1223,38 +1282,43 @@ export class ThreeJSVisualizer {
         this.camera.fov = 60; // Good FOV for tunnel fly-through
         this.camera.updateProjectionMatrix();
 
-        // ========== VISUAL EFFECTS - CONTROLLED BRIGHTNESS ==========
-        // Material updates with CONTROLLED brightness - not too bright/in your face
+        // ========== VISUAL EFFECTS - MUSIC-DRIVEN TUNNEL ==========
+        // Make the tunnel feel like music is pulling you through
         if (this.tunnelMaterial) {
-            // CLAMPED emissive intensity to reasonable range (0.3 to 1.5 max)
-            const baseEmissive = 0.4;
-            const emissiveBoost = (clampedAmp * 0.6) + (this.beatDecay * 0.4) + (clampedBass * 0.3);
-            const emissiveIntensity = Math.min(1.5, baseEmissive + emissiveBoost);
+            // Emissive intensity pulses with music - drives the "pull" feeling
+            const baseEmissive = 0.6;
+            const musicPull = (clampedBass * 0.8) + (clampedAmp * 0.5) + (this.beatDecay * 0.6);
+            const emissiveIntensity = Math.min(2.0, baseEmissive + musicPull);
             this.tunnelMaterial.emissiveIntensity = emissiveIntensity;
             
-            // Dynamic color with REDUCED saturation and brightness for subtler, shinier look
-            const hue = (time * 0.03 + clampedBass * 0.15 + clampedMid * 0.1) % 1;
-            // Lower saturation (0.6-0.7) and lower lightness (0.3-0.4) for shiny but not bright
-            const saturation = Math.min(0.7, 0.5 + clampedAmp * 0.2);
-            const lightness = Math.min(0.4, 0.25 + clampedAmp * 0.15);
+            // Dynamic color - shifts with music frequencies
+            const hue = (time * 0.05 + clampedBass * 0.2 + clampedMid * 0.15) % 1;
+            // Higher saturation and visible lightness
+            const saturation = Math.min(0.9, 0.7 + clampedAmp * 0.2);
+            const lightness = Math.min(0.5, 0.35 + clampedAmp * 0.15);
             this.tunnelMaterial.color.setHSL(hue, saturation, lightness);
             
-            // Emissive color also toned down
-            const emissiveHue = (hue + 0.05) % 1;
-            const emissiveSaturation = Math.min(0.8, 0.6 + clampedBass * 0.2);
-            const emissiveLightness = Math.min(0.25, 0.15 + clampedBass * 0.1);
-            this.tunnelMaterial.emissive.setHSL(emissiveHue, emissiveSaturation, emissiveLightness);
+            // Emissive color - brighter, more vivid
+            const emissiveHue = (hue + 0.1) % 1;
+            this.tunnelMaterial.emissive.setHSL(emissiveHue, 0.9, 0.3 + clampedBass * 0.2);
             
-            // Metalness and roughness for shiny structure
-            this.tunnelMaterial.metalness = Math.min(1.0, 0.7 + clampedAmp * 0.2);
-            this.tunnelMaterial.roughness = Math.max(0.05, 0.15 - clampedAmp * 0.1);
-            
+            // Scroll texture with speed for forward motion feel
             if (this.tunnelMaterial.map) {
-                // Scrolled texture for speed feel - CLAMPED scroll speed
-                const scrollSpeed = Math.min(10, speed * 8000);
+                const scrollSpeed = Math.min(0.05, speed * 50);
                 this.tunnelMaterial.map.offset.y -= scrollSpeed;
-                this.tunnelMaterial.map.offset.x += Math.sin(time * 0.2) * 0.01;
             }
+        }
+        
+        // Update outer glow based on music
+        if (this.tunnelOuterMesh && this.tunnelOuterMesh.material) {
+            const glowIntensity = 0.3 + (clampedBass * 0.4) + (this.beatDecay * 0.3);
+            this.tunnelOuterMesh.material.opacity = Math.min(0.7, glowIntensity);
+        }
+        
+        // Update inner glow based on music
+        if (this.tunnelInnerMesh && this.tunnelInnerMesh.material) {
+            const innerGlow = 0.2 + (clampedMid * 0.3) + (this.beatDecay * 0.2);
+            this.tunnelInnerMesh.material.opacity = Math.min(0.5, innerGlow);
         }
 
         // NO TUNNEL ROTATION - Camera moves, tunnel stays put (or very minimal rotation)
