@@ -350,12 +350,12 @@ export class ThreeJSVisualizer {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
 
-        // 1. Unreal Bloom - The Neon Glow
+        // 1. Unreal Bloom - Subtle glow (reduced for tunnel mode)
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(width, height),
-            0.85,
-            0.55,
-            0.75
+            0.6,   // strength - reduced
+            0.4,   // radius
+            0.85   // threshold - raised to reduce bloom on darker elements
         );
         this.composer.addPass(bloomPass);
         this.bloomPass = bloomPass;
@@ -531,22 +531,22 @@ export class ThreeJSVisualizer {
             fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:setMode:tunnel',message:'Setting tunnel mode - background set to black',data:{mode,tunnelGroupExists:!!this.tunnelGroup,tunnelMeshExists:!!this.tunnelMesh,sceneBackgroundSet:true,hasLights:!!this.tunnelLight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E,F,G'})}).catch(()=>{});
             // #endregion
             
-            // CRITICAL: Add tunnel-specific lighting
+            // CINEMATIC TUNNEL LIGHTING - Subtle and moody
             if (!this.tunnelLight) {
-                // Ambient light so tunnel walls are visible
-                this.tunnelAmbient = new THREE.AmbientLight(0x6688ff, 0.8);
+                // Very dim ambient - mostly dark with accent highlights
+                this.tunnelAmbient = new THREE.AmbientLight(0x0a0510, 0.4);
                 this.scene.add(this.tunnelAmbient);
                 
-                // Point light that follows the camera - LARGER range for bigger tunnel
-                this.tunnelLight = new THREE.PointLight(0x00ccff, 3.0, 200);
+                // Primary light - soft cyan glow ahead
+                this.tunnelLight = new THREE.PointLight(0x00aacc, 1.2, 100);
                 this.scene.add(this.tunnelLight);
                 
-                // Secondary light for depth - pink/magenta accent
-                this.tunnelLight2 = new THREE.PointLight(0xff66aa, 2.5, 150);
+                // Accent light - subtle magenta rim
+                this.tunnelLight2 = new THREE.PointLight(0x660066, 0.8, 80);
                 this.scene.add(this.tunnelLight2);
                 
-                // Third light for rear illumination
-                this.tunnelLight3 = new THREE.PointLight(0x66ff66, 2.0, 120);
+                // Rear light - very subtle purple
+                this.tunnelLight3 = new THREE.PointLight(0x220033, 0.5, 60);
                 this.scene.add(this.tunnelLight3);
             }
             // Enable tunnel lights
@@ -562,7 +562,7 @@ export class ThreeJSVisualizer {
             if (this.godRays) this.godRays.forEach(mesh => mesh.visible = false);
             
             if (!this.tunnelGroup) {
-                this.createTunnel();
+            this.createTunnel();
             } else {
                 this.tunnelGroup.visible = true;
                 // Re-initialize camera position if tunnel already exists
@@ -625,6 +625,18 @@ export class ThreeJSVisualizer {
         // Handle tunnel mode
         if (this.mode === 'tunnel' || this.mode === 'depthlines') {
             this.updateTunnel(time, bass, mid, high, amplitude);
+            
+            // Reduce bloom for tunnel mode - prevents flashy white
+            if (this.bloomPass) {
+                this.bloomPass.strength = 0.35;
+                this.bloomPass.threshold = 0.9;
+            }
+        } else {
+            // Normal bloom for other modes
+            if (this.bloomPass) {
+                this.bloomPass.strength = 0.6;
+                this.bloomPass.threshold = 0.85;
+            }
         }
 
         // FIXED CAMERA - No zoom, minimal drift for Mercury modes
@@ -923,489 +935,328 @@ export class ThreeJSVisualizer {
         this.tunnelGroup = new THREE.Group();
         this.scene.add(this.tunnelGroup);
 
-        // CREATE WINDING PATH FOR "FLY-THROUGH"
+        // ========== CINEMATIC WORMHOLE TUNNEL ==========
+        // Dark, moody sci-fi aesthetic with neon accent rings
+        
         this.tunnelPoints = [];
-        // Start tunnelU at 0.2 so camera starts "inside" the tunnel, not at the entrance
-        this.tunnelU = 0.2;
-        this.tunnelPointsCount = 100; // More points for smoother, longer tunnel
-        this.tunnelBasePoints = []; // Store base positions for audio-reactive deformation
+        this.tunnelU = 0.15; // Start slightly into the tunnel
+        this.tunnelPointsCount = 120;
+        this.tunnelBasePoints = [];
 
-        // Initial points for a winding path - CAMERA MUST STAY INSIDE TUNNEL
-        // Curve amplitude MUST be much smaller than tunnel radius (15) to keep camera inside
+        // Gentle winding path - subtle curves for immersion
         for (let i = 0; i < this.tunnelPointsCount; i++) {
-            const z = 100 - i * 15; // Start at z=100, go back to z=-1400 (longer tunnel)
-            // REDUCED amplitude to 2 - keeps camera well inside the 15-radius tunnel
-            const baseX = Math.sin(i * 0.25) * 2;
-            const baseY = Math.cos(i * 0.3) * 2;
-            const x = baseX;
-            const y = baseY;
-            this.tunnelPoints.push(new THREE.Vector3(x, y, z));
+            const z = 80 - i * 14;
+            // Very gentle curves - keeps camera centered
+            const baseX = Math.sin(i * 0.15) * 1.5;
+            const baseY = Math.cos(i * 0.18) * 1.5;
+            this.tunnelPoints.push(new THREE.Vector3(baseX, baseY, z));
             this.tunnelBasePoints.push(new THREE.Vector3(baseX, baseY, z));
         }
 
         this.tunnelCurve = new THREE.CatmullRomCurve3(this.tunnelPoints);
+        this.curveSmoothing = 0.12;
         
-        // Smoothing factor for curve updates
-        this.curveSmoothing = 0.15;
-        
-        // Initialize camera position on curve
+        // Initialize camera
         const initialCamPoint = this.tunnelCurve.getPoint(this.tunnelU);
         if (this.camera) {
             this.camera.position.copy(initialCamPoint);
-            const initialLookAhead = this.tunnelCurve.getPoint(Math.min(0.99, this.tunnelU + 0.02));
+            const initialLookAhead = this.tunnelCurve.getPoint(Math.min(0.99, this.tunnelU + 0.03));
             this.camera.lookAt(initialLookAhead);
         }
 
-        // Tube Geometry along the curve - LARGE radius so camera stays inside
-        const tubularSegments = 150; // Reduced for better performance
-        const radius = 15; // INCREASED - camera path amplitude is ~5, so 15 gives plenty of room
-        const radialSegments = 24; // Reduced for better performance
-        const closed = false;
+        const radius = 12;
+        const tubularSegments = 200;
+        const radialSegments = 32;
 
-        const geometry = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius, radialSegments, closed);
-
-        // Enhanced material - VISIBLE and realistic tunnel
-        const noiseMap = this.createNoiseTexture();
+        // ========== MAIN TUNNEL STRUCTURE - Dark metallic walls ==========
+        const tunnelGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius, radialSegments, false);
         this.tunnelMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2244aa, // Visible blue color
-            emissive: 0x1133ff, // Strong blue glow
-            emissiveIntensity: 0.8, // Visible glow
-            metalness: 0.9,
-            roughness: 0.2,
-            side: THREE.BackSide, // See inside the tunnel
-            map: noiseMap,
-            transparent: false, // Solid tunnel walls
-            depthWrite: true,
-            depthTest: true
+            color: 0x0a0a12, // Very dark blue-black
+            emissive: 0x0a0515, // Subtle purple tint
+            emissiveIntensity: 0.3,
+            metalness: 0.95,
+            roughness: 0.4,
+            side: THREE.BackSide,
+            transparent: false
         });
-
-        this.tunnelMesh = new THREE.Mesh(geometry, this.tunnelMaterial);
+        this.tunnelMesh = new THREE.Mesh(tunnelGeo, this.tunnelMaterial);
         this.tunnelGroup.add(this.tunnelMesh);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:createTunnel:meshCreated',message:'Tunnel mesh created',data:{meshExists:!!this.tunnelMesh,curvePointsCount:this.tunnelPoints?.length,firstPoint:this.tunnelPoints?.[0],lastPoint:this.tunnelPoints?.[this.tunnelPoints.length-1],tunnelU:this.tunnelU},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
 
-        // Outer glow layer - visible neon glow
-        const outerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius + 1.0, radialSegments, closed);
-        const outerMat = new THREE.MeshBasicMaterial({
-            color: 0x6699ff, // Bright blue glow
+        // ========== NEON RING SEGMENTS - Creates depth perception ==========
+        this.tunnelRings = [];
+        const ringCount = 60;
+        for (let i = 0; i < ringCount; i++) {
+            const t = i / ringCount;
+            const point = this.tunnelCurve.getPoint(t);
+            const tangent = this.tunnelCurve.getTangent(t);
+            
+            // Alternating ring colors for variety
+            const ringColor = i % 3 === 0 ? 0x00ffff : (i % 3 === 1 ? 0xff00aa : 0x4400ff);
+            const ringRadius = radius - 0.3;
+            
+            const ringGeo = new THREE.TorusGeometry(ringRadius, 0.08, 8, 48);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: ringColor,
             transparent: true,
-            opacity: 0.5,
-            side: THREE.BackSide,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.copy(point);
+            
+            // Orient ring perpendicular to tunnel path
+            const up = new THREE.Vector3(0, 1, 0);
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(up, tangent);
+            ring.quaternion.copy(quaternion);
+            ring.rotateX(Math.PI / 2);
+            
+            ring.userData = { baseOpacity: 0.4 + Math.random() * 0.3, t: t };
+            this.tunnelRings.push(ring);
+            this.tunnelGroup.add(ring);
+        }
+
+        // ========== HEXAGONAL GRID WIREFRAME - Sci-fi texture ==========
+        const wireGeo = new THREE.TubeGeometry(this.tunnelCurve, 80, radius - 0.1, 6, false);
+        const wireMat = new THREE.MeshBasicMaterial({
+            color: 0x1a0a2e, // Dark purple
+            wireframe: true,
+            transparent: true,
+            opacity: 0.25
         });
-        this.tunnelOuterMesh = new THREE.Mesh(outerGeo, outerMat);
-        this.tunnelGroup.add(this.tunnelOuterMesh);
+        this.tunnelWireframe = new THREE.Mesh(wireGeo, wireMat);
+        this.tunnelGroup.add(this.tunnelWireframe);
+
+        // ========== INNER GLOW CORE - Subtle light in the distance ==========
+        const coreGeo = new THREE.TubeGeometry(this.tunnelCurve, 100, 0.8, 16, false);
+        const coreMat = new THREE.MeshBasicMaterial({
+            color: 0x6633ff,
+            transparent: true,
+            opacity: 0.15,
+            blending: THREE.AdditiveBlending
+        });
+        this.tunnelCore = new THREE.Mesh(coreGeo, coreMat);
+        this.tunnelGroup.add(this.tunnelCore);
+
+        // ========== SPEED LINE PARTICLES ==========
+        this.createSpeedLines();
         
-        // Inner neon ring layer - creates depth and speed lines
-        const innerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius - 1.0, radialSegments, closed);
-        const innerMat = new THREE.MeshBasicMaterial({
-            color: 0x00ffff, // Cyan inner glow
-            transparent: true,
-            opacity: 0.4,
-            side: THREE.BackSide,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-        this.tunnelInnerMesh = new THREE.Mesh(innerGeo, innerMat);
-        this.tunnelGroup.add(this.tunnelInnerMesh);
-
-        // Create particles that fly within the tunnel
-        this.createWormholeParticles();
         this.tunnelGroup.visible = true;
     }
-
-    createWormholeParticles() {
-        const particleCount = 1500; // Reduced for better performance
-        const particlesGeo = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-
-        for (let i = 0; i < particleCount; i++) {
-            // Distribute along the curve
+    
+    createSpeedLines() {
+        // Elongated particles that streak past for speed sensation
+        const lineCount = 800;
+        const positions = new Float32Array(lineCount * 3);
+        const colors = new Float32Array(lineCount * 3);
+        const sizes = new Float32Array(lineCount);
+        
+        for (let i = 0; i < lineCount; i++) {
             const t = Math.random();
             const point = this.tunnelCurve.getPoint(t);
             const tangent = this.tunnelCurve.getTangent(t);
-
-            // Random radial offset - distribute within the 15-radius tunnel
+            
+            // Distribute around the tunnel walls
             const angle = Math.random() * Math.PI * 2;
-            const r = 3 + Math.random() * 10; // Between 3 and 13, inside 15-radius tunnel
+            const r = 2 + Math.random() * 8; // Between center and walls
+            
             const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
             const normal = new THREE.Vector3().crossVectors(tangent, binormal).normalize();
-
-            const offset = new THREE.Vector3()
-                .addScaledVector(binormal, Math.cos(angle) * r)
-                .addScaledVector(normal, Math.sin(angle) * r);
-
-            positions[i * 3] = point.x + offset.x;
-            positions[i * 3 + 1] = point.y + offset.y;
-            positions[i * 3 + 2] = point.z + offset.z;
-
-            // Vibrant colors for visibility
-            colors[i * 3] = 0.4 + Math.random() * 0.4;     // R
-            colors[i * 3 + 1] = 0.3 + Math.random() * 0.4; // G
-            colors[i * 3 + 2] = 0.7 + Math.random() * 0.3; // B - more blue
+            
+            positions[i * 3] = point.x + Math.cos(angle) * r * binormal.x + Math.sin(angle) * r * normal.x;
+            positions[i * 3 + 1] = point.y + Math.cos(angle) * r * binormal.y + Math.sin(angle) * r * normal.y;
+            positions[i * 3 + 2] = point.z + Math.cos(angle) * r * binormal.z + Math.sin(angle) * r * normal.z;
+            
+            // Color gradient: cyan to magenta
+            const colorT = Math.random();
+            colors[i * 3] = 0.2 + colorT * 0.8; // R
+            colors[i * 3 + 1] = 0.8 - colorT * 0.5; // G  
+            colors[i * 3 + 2] = 1.0; // B
+            
+            sizes[i] = 1 + Math.random() * 3;
         }
-
-        particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const particleTex = this.createSoftParticleTexture();
-        const particlesMat = new THREE.PointsMaterial({
+        
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+        
+        const material = new THREE.PointsMaterial({
+            size: 2,
             vertexColors: true,
-            size: 3.0,
-            map: particleTex,
             transparent: true,
-            opacity: 0.8,
+            opacity: 0.7,
             blending: THREE.AdditiveBlending,
-            depthWrite: false
+            depthWrite: false,
+            map: this.createSoftParticleTexture()
         });
-
-        this.tunnelParticles = new THREE.Points(particlesGeo, particlesMat);
-        this.tunnelGroup.add(this.tunnelParticles);
-    }
-
-
-
-    createTunnelParticles() {
-        const particleCount = 2000;
-        const particlesGeo = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        const sizes = new Float32Array(particleCount);
-
-        for (let i = 0; i < particleCount; i++) {
-            positions[i * 3 + 2] = -Math.random() * 800;
-            // distribute in a cylinder around camera path
-            const angle = Math.random() * Math.PI * 2;
-            const r = 4 + Math.random() * 25; // 4 to 29 radius
-            positions[i * 3] = Math.cos(angle) * r;
-            positions[i * 3 + 1] = Math.sin(angle) * r;
-
-            colors[i * 3] = 0.3 + Math.random() * 0.3; // R - Reduced
-            colors[i * 3 + 1] = 0.25 + Math.random() * 0.25; // G - Reduced
-            colors[i * 3 + 2] = 0.6 + Math.random() * 0.3; // B - Reduced brightness
-
-            sizes[i] = Math.random();
-        }
-
-        particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        particlesGeo.setAttribute('size', new THREE.BufferAttribute(sizes, 1)); // We'll use this if we setup shader material, else just variance
-
-        // Use soft sprite
-        const particleTex = this.createSoftParticleTexture();
-
-        const particlesMat = new THREE.PointsMaterial({
-            vertexColors: true,
-            size: 2.5, // Smaller particles
-            map: particleTex,
-            transparent: true,
-            opacity: 0.5, // Reduced opacity
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
-        });
-
-        this.tunnelParticles = new THREE.Points(particlesGeo, particlesMat);
-        this.tunnelGroup.add(this.tunnelParticles);
+        
+        this.speedLines = new THREE.Points(geometry, material);
+        this.tunnelGroup.add(this.speedLines);
     }
 
     updateTunnel(time, bass, mid, high, amp) {
-        // #region agent log
-        if (this._frame % 60 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:entry',message:'updateTunnel called',data:{frame:this._frame,hasTunnelGroup:!!this.tunnelGroup,hasTunnelCurve:!!this.tunnelCurve,hasTunnelMesh:!!this.tunnelMesh,tunnelGroupVisible:this.tunnelGroup?.visible,tunnelU:this.tunnelU,bass,mid,high,amp},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{}); }
-        // #endregion
         if (!this.tunnelGroup || !this.tunnelCurve || !this.tunnelBasePoints || !this.camera) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:earlyReturn',message:'Early return - missing dependencies',data:{hasTunnelGroup:!!this.tunnelGroup,hasTunnelCurve:!!this.tunnelCurve,hasBasePoints:!!this.tunnelBasePoints,hasCamera:!!this.camera},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             if (!this.tunnelGroup) {
                 this.createTunnel();
             }
             return;
         }
-        
+
         // Ensure tunnelU is initialized
         if (typeof this.tunnelU !== 'number' || isNaN(this.tunnelU)) {
-            this.tunnelU = 0.2;
+            this.tunnelU = 0.15;
         }
 
-        // ========== AUDIO-REACTIVE TUNNEL CURVES ==========
-        // Update tunnel curve shape based on audio - MUST keep total amplitude < tunnel radius (15)
-        // Max deformation should be ~3-4 units to stay well inside the 15-radius tunnel
-        
+        // Clamp audio values for subtle reactivity
+        const clampedBass = Math.min(1.0, bass);
+        const clampedMid = Math.min(1.0, mid);
+        const clampedHigh = Math.min(1.0, high);
+        const clampedAmp = Math.min(0.5, amp); // Extra clamped for subtlety
+
+        // ========== GENTLE CURVE ANIMATION ==========
+        // Very subtle curve movement - mostly static tunnel with slight breathing
         for (let i = 0; i < this.tunnelPointsCount; i++) {
             const basePoint = this.tunnelBasePoints[i];
             const progress = i / this.tunnelPointsCount;
             
-            // Frequency-based curve deformation - SMALL values to stay inside tunnel
-            // Bass controls horizontal curves (left/right) - max 2 units
-            const bassCurve = Math.sin(progress * Math.PI * 4 + time * 0.8) * Math.min(2, bass * 1.5);
-            // Mid controls vertical curves (up/down) - max 1.5 units
-            const midCurve = Math.cos(progress * Math.PI * 3.5 + time * 0.6) * Math.min(1.5, mid * 1.2);
-            // High frequencies add quick twists - max 1 unit
-            const highTwist = Math.sin(progress * Math.PI * 8 + time * 2) * Math.min(1, high * 0.8);
+            // Very gentle breathing motion - almost imperceptible
+            const breathX = Math.sin(progress * Math.PI * 2 + time * 0.3) * 0.3 * clampedBass;
+            const breathY = Math.cos(progress * Math.PI * 2.5 + time * 0.25) * 0.25 * clampedMid;
             
-            // Beat-driven sudden curves - max 1 unit
-            const beatCurveX = Math.sin(time * 5 + progress * 10) * Math.min(1, this.beatDecay * 0.8);
-            const beatCurveY = Math.cos(time * 4 + progress * 9) * Math.min(1, this.beatDecay * 0.6);
-            
-            // Calculate new position - total max deformation ~5-6 units, well inside 15-radius tunnel
-            const newX = basePoint.x + bassCurve + beatCurveX + highTwist * 0.3;
-            const newY = basePoint.y + midCurve + beatCurveY;
-            
-            // Smooth interpolation for fluid curve changes
             const currentPoint = this.tunnelPoints[i];
-            currentPoint.x += (newX - currentPoint.x) * this.curveSmoothing;
-            currentPoint.y += (newY - currentPoint.y) * this.curveSmoothing;
+            currentPoint.x += ((basePoint.x + breathX) - currentPoint.x) * 0.08;
+            currentPoint.y += ((basePoint.y + breathY) - currentPoint.y) * 0.08;
         }
         
-        // Rebuild curve with updated points - CRITICAL: Must rebuild every frame for smooth motion
+        // Rebuild curve
         this.tunnelCurve = new THREE.CatmullRomCurve3(this.tunnelPoints);
-        
-        // Update tunnel geometry every 2 frames for balance between smoothness and performance
-        // NOTE: Curve changes every frame, but geometry can update less frequently
-        if (this.tunnelMesh && this.tunnelMesh.geometry && this._frame % 2 === 0) {
-            try {
-                const newGeometry = new THREE.TubeGeometry(
-                    this.tunnelCurve,
-                    150, // tubularSegments (matches creation)
-                    15,  // radius - LARGE to keep camera inside
-                    24,  // radialSegments (matches creation)
-                    false // closed
-                );
-                this.tunnelMesh.geometry.dispose();
-                this.tunnelMesh.geometry = newGeometry;
-                
-                // Update outer glow geometry
-                if (this.tunnelOuterMesh && this.tunnelOuterMesh.geometry) {
-                    const outerGeo = new THREE.TubeGeometry(
-                        this.tunnelCurve,
-                        150,
-                        16,  // Slightly larger than main tunnel
-                        24,
-                        false
-                    );
-                    this.tunnelOuterMesh.geometry.dispose();
-                    this.tunnelOuterMesh.geometry = outerGeo;
-                }
-                
-                // Update inner glow geometry
-                if (this.tunnelInnerMesh && this.tunnelInnerMesh.geometry) {
-                    const innerGeo = new THREE.TubeGeometry(
-                        this.tunnelCurve,
-                        150,
-                        14,  // Slightly smaller than main tunnel
-                        24,
-                        false
-                    );
-                    this.tunnelInnerMesh.geometry.dispose();
-                    this.tunnelInnerMesh.geometry = innerGeo;
-                }
-            } catch (e) {
-                console.warn('[Tunnel] Geometry update error:', e);
-            }
-        }
 
-        // ========== AUDIO-REACTIVE SPEED - CLAMPED ==========
-        // Speed depends on audio energy but with MAX LIMITS to prevent excessive zoom
-        const baseSpeed = 0.001; // Base speed for smooth forward motion
-        // Clamp multipliers to prevent extreme values
-        const clampedBass = Math.min(1.0, bass);
-        const clampedMid = Math.min(1.0, mid);
-        const clampedHigh = Math.min(1.0, high);
-        const clampedAmp = Math.min(1.0, amp);
-        
-        const speedMultiplier = 1.0 + (clampedBass * 1.2) + (clampedMid * 0.6) + (clampedHigh * 0.3) + (clampedAmp * 0.8);
-        const audioSpeedBoost = Math.min(0.005, baseSpeed * speedMultiplier); // MAX speed cap
-        const speed = audioSpeedBoost + (this.beatDecay * 0.0015);
+        // ========== SMOOTH FORWARD MOTION ==========
+        // Gentle, consistent speed with subtle audio boost
+        const baseSpeed = 0.0008;
+        const audioBoost = clampedBass * 0.001 + clampedAmp * 0.0005;
+        const speed = baseSpeed + Math.min(0.002, audioBoost);
 
         this.tunnelU += speed;
-        // Seamless loop - wrap around smoothly, keep in valid range
-        if (this.tunnelU >= 0.95) {
-            // Instead of resetting to 0, smoothly wrap by going back slightly
-            // This prevents camera jump
-            this.tunnelU = 0.05 + (this.tunnelU - 0.95);
+        if (this.tunnelU >= 0.92) {
+            this.tunnelU = 0.08;
         }
-        // Keep tunnelU in valid range
         this.tunnelU = Math.max(0.05, Math.min(0.95, this.tunnelU));
 
-        // ========== CAMERA POSITIONING - MOVE THROUGH TUNNEL ==========
-        // Camera moves along the curve - NOT tunnel rotating around camera
-        // Ensure tunnelU is within valid range
-        if (this.tunnelU < 0) this.tunnelU = 0;
-        if (this.tunnelU > 0.99) this.tunnelU = 0.99;
-        
+        // ========== CAMERA - SMOOTH FLIGHT ==========
         const camPoint = this.tunnelCurve.getPoint(this.tunnelU);
-        if (!camPoint || isNaN(camPoint.x)) {
-            console.warn('[Tunnel] Invalid camera point at U:', this.tunnelU);
-            return;
-        }
+        if (!camPoint || isNaN(camPoint.x)) return;
         
-        const lookAheadU = Math.min(0.99, this.tunnelU + 0.02); // Look ahead
+        const lookAheadU = Math.min(0.98, this.tunnelU + 0.04);
         const lookAtPoint = this.tunnelCurve.getPoint(lookAheadU);
+        if (!lookAtPoint || isNaN(lookAtPoint.x)) return;
         
-        if (!lookAtPoint || isNaN(lookAtPoint.x)) {
-            console.warn('[Tunnel] Invalid look-at point');
-            return;
-        }
-        
-        // DIRECTLY set camera position to the curve point (no lerp lag)
-        this.camera.position.set(camPoint.x, camPoint.y, camPoint.z);
-        
-        // Very subtle shake - MINIMAL to keep camera inside tunnel
-        const shakeIntensity = Math.min(0.3, (this.beatDecay * 0.25) + (clampedBass * 0.15));
-        const shakeX = Math.sin(time * 8) * shakeIntensity * 0.1;
-        const shakeY = Math.cos(time * 7) * shakeIntensity * 0.1;
-        this.camera.position.x += shakeX;
-        this.camera.position.y += shakeY;
-
-        // Use THREE.js built-in lookAt for proper orientation
+        // Smooth camera interpolation
+        this.camera.position.lerp(camPoint, 0.15);
         this.camera.lookAt(lookAtPoint);
-        
-        // CRITICAL: Move tunnel lights with camera for proper illumination
+
+        // ========== ANIMATE NEON RINGS ==========
+        if (this.tunnelRings) {
+            this.tunnelRings.forEach((ring, i) => {
+                const ringT = ring.userData.t;
+                const distFromCamera = Math.abs(ringT - this.tunnelU);
+                
+                // Rings near camera are brighter
+                const proximityGlow = Math.max(0, 1 - distFromCamera * 3);
+                const baseOpacity = ring.userData.baseOpacity;
+                const audioGlow = clampedBass * 0.3 + clampedHigh * 0.2;
+                
+                // Pulse effect
+                const pulse = Math.sin(time * 3 + i * 0.5) * 0.1;
+                
+                ring.material.opacity = Math.min(0.8, baseOpacity * (0.3 + proximityGlow * 0.5 + audioGlow + pulse));
+                
+                // Subtle scale pulse on beat
+                const scalePulse = 1 + this.beatDecay * 0.05;
+                ring.scale.setScalar(scalePulse);
+            });
+        }
+
+        // ========== ANIMATE SPEED LINES ==========
+        if (this.speedLines) {
+            const positions = this.speedLines.geometry.attributes.position.array;
+            const speedLineDelta = speed * 800 + clampedBass * 5;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i + 2] += speedLineDelta; // Move toward camera
+                
+                // Reset particles that pass the camera
+                if (positions[i + 2] > this.camera.position.z + 50) {
+                    positions[i + 2] = this.camera.position.z - 400 - Math.random() * 200;
+                    // Redistribute around tunnel
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 2 + Math.random() * 8;
+                    positions[i] = this.camera.position.x + Math.cos(angle) * r;
+                    positions[i + 1] = this.camera.position.y + Math.sin(angle) * r;
+                }
+            }
+            this.speedLines.geometry.attributes.position.needsUpdate = true;
+            
+            // Opacity pulses with music
+            this.speedLines.material.opacity = 0.4 + clampedBass * 0.3 + clampedHigh * 0.2;
+        }
+
+        // ========== TUNNEL WALL EFFECTS ==========
+        if (this.tunnelMaterial) {
+            // Subtle emissive pulse - NOT flashy white
+            const emissiveIntensity = 0.2 + clampedBass * 0.15 + this.beatDecay * 0.1;
+            this.tunnelMaterial.emissiveIntensity = Math.min(0.5, emissiveIntensity);
+            
+            // Subtle color shift
+            const hue = (time * 0.02 + clampedMid * 0.05) % 1;
+            this.tunnelMaterial.emissive.setHSL(hue * 0.15 + 0.7, 0.5, 0.08); // Purple range
+        }
+
+        // ========== WIREFRAME ANIMATION ==========
+        if (this.tunnelWireframe) {
+            this.tunnelWireframe.material.opacity = 0.15 + clampedHigh * 0.15;
+        }
+
+        // ========== CORE GLOW ==========
+        if (this.tunnelCore) {
+            this.tunnelCore.material.opacity = 0.1 + clampedBass * 0.1 + this.beatDecay * 0.05;
+        }
+
+        // ========== LIGHTS FOLLOW CAMERA ==========
         if (this.tunnelLight) {
             this.tunnelLight.position.copy(this.camera.position);
-            // Offset forward to light the path ahead
-            this.tunnelLight.position.z -= 40;
+            this.tunnelLight.position.z -= 30;
         }
         if (this.tunnelLight2) {
             this.tunnelLight2.position.copy(this.camera.position);
-            // Offset to the side for accent lighting
-            this.tunnelLight2.position.x += 10;
-            this.tunnelLight2.position.z -= 20;
+            this.tunnelLight2.position.x += 8;
+            this.tunnelLight2.position.z -= 15;
         }
         if (this.tunnelLight3) {
             this.tunnelLight3.position.copy(this.camera.position);
-            // Offset behind camera for rear illumination
-            this.tunnelLight3.position.z += 50;
+            this.tunnelLight3.position.z += 40;
         }
         
-        // Calculate camera distance from tunnel center for debugging
-        const camDistFromCenter = Math.sqrt(camPoint.x * camPoint.x + camPoint.y * camPoint.y);
-        
-        // #region agent log
-        if (this._frame % 60 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:cameraSet',message:'Camera position set',data:{tunnelU:this.tunnelU,camPoint:{x:camPoint.x,y:camPoint.y,z:camPoint.z},camDistFromCenter:camDistFromCenter,tunnelRadius:15,isInsideTunnel:camDistFromCenter<15,lookAtPoint:{x:lookAtPoint.x,y:lookAtPoint.y,z:lookAtPoint.z},cameraPos:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},cameraFov:this.camera.fov,sceneBackground:this.scene?.background?.getHexString?.()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D,F,G,K'})}).catch(()=>{}); }
-        // #endregion
+        // Light intensity pulses subtly with music
+        if (this.tunnelLight) {
+            this.tunnelLight.intensity = 0.8 + clampedBass * 0.4;
+        }
+        if (this.tunnelLight2) {
+            this.tunnelLight2.intensity = 0.5 + clampedMid * 0.3;
+        }
 
-        // ========== CAMERA ROLL - MINIMAL ==========
-        // Subtle roll based on curve direction - REDUCED
+        // ========== SUBTLE CAMERA ROLL ==========
         const tangent = this.tunnelCurve.getTangent(this.tunnelU);
         if (tangent && !isNaN(tangent.x)) {
-            const rollFromCurve = Math.atan2(tangent.y, tangent.x) * 0.05; // Reduced multiplier
-            const audioRoll = (Math.sin(time * 1.0) * 0.05 * clampedMid) + (this.beatDecay * 0.1); // Reduced
-            const targetRoll = rollFromCurve + audioRoll;
-            
-            // Smooth roll transition
-            this.camera.rotation.z += (targetRoll - this.camera.rotation.z) * 0.15;
+            const rollFromCurve = Math.atan2(tangent.y, tangent.x) * 0.02;
+            const targetRoll = rollFromCurve + Math.sin(time * 0.5) * 0.02;
+            this.camera.rotation.z += (targetRoll - this.camera.rotation.z) * 0.08;
         }
         
-        // Ensure camera stays at reasonable FOV for tunnel view
-        this.camera.fov = 60; // Good FOV for tunnel fly-through
+        // Wide FOV for immersive tunnel view
+        this.camera.fov = 75;
         this.camera.updateProjectionMatrix();
-
-        // ========== VISUAL EFFECTS - MUSIC-DRIVEN TUNNEL ==========
-        // Make the tunnel feel like music is pulling you through
-        if (this.tunnelMaterial) {
-            // Emissive intensity pulses with music - drives the "pull" feeling
-            const baseEmissive = 0.6;
-            const musicPull = (clampedBass * 0.8) + (clampedAmp * 0.5) + (this.beatDecay * 0.6);
-            const emissiveIntensity = Math.min(2.0, baseEmissive + musicPull);
-            this.tunnelMaterial.emissiveIntensity = emissiveIntensity;
-            
-            // Dynamic color - shifts with music frequencies
-            const hue = (time * 0.05 + clampedBass * 0.2 + clampedMid * 0.15) % 1;
-            // Higher saturation and visible lightness
-            const saturation = Math.min(0.9, 0.7 + clampedAmp * 0.2);
-            const lightness = Math.min(0.5, 0.35 + clampedAmp * 0.15);
-            this.tunnelMaterial.color.setHSL(hue, saturation, lightness);
-            
-            // Emissive color - brighter, more vivid
-            const emissiveHue = (hue + 0.1) % 1;
-            this.tunnelMaterial.emissive.setHSL(emissiveHue, 0.9, 0.3 + clampedBass * 0.2);
-            
-            // Scroll texture with speed for forward motion feel
-            if (this.tunnelMaterial.map) {
-                const scrollSpeed = Math.min(0.05, speed * 50);
-                this.tunnelMaterial.map.offset.y -= scrollSpeed;
-            }
-        }
-        
-        // Update outer glow based on music
-        if (this.tunnelOuterMesh && this.tunnelOuterMesh.material) {
-            const glowIntensity = 0.3 + (clampedBass * 0.4) + (this.beatDecay * 0.3);
-            this.tunnelOuterMesh.material.opacity = Math.min(0.7, glowIntensity);
-        }
-        
-        // Update inner glow based on music
-        if (this.tunnelInnerMesh && this.tunnelInnerMesh.material) {
-            const innerGlow = 0.2 + (clampedMid * 0.3) + (this.beatDecay * 0.2);
-            this.tunnelInnerMesh.material.opacity = Math.min(0.5, innerGlow);
-        }
-
-        // NO TUNNEL ROTATION - Camera moves, tunnel stays put (or very minimal rotation)
-        const rotationSpeed = Math.min(0.001, 0.0005 + (clampedBass * 0.0003)); // MINIMAL rotation
-        this.tunnelGroup.rotation.z += rotationSpeed;
-        
-        // Subtle pulse on beats - CLAMPED
-        if (this.tunnelMesh) {
-            const pulseScale = 1.0 + Math.min(0.03, (this.beatDecay * 0.02) + (clampedBass * 0.015));
-            this.tunnelMesh.scale.set(1, 1, pulseScale);
-            if (this.tunnelOuterMesh) {
-                this.tunnelOuterMesh.scale.set(1, 1, pulseScale);
-            }
-            if (this.tunnelInnerMesh) {
-                const innerPulse = 1.0 + Math.min(0.04, (this.beatDecay * 0.03) + (clampedBass * 0.02));
-                this.tunnelInnerMesh.scale.set(1, 1, innerPulse);
-                
-                // Inner glow opacity - CONTROLLED
-                if (this.tunnelInnerMesh.material) {
-                    const innerOpacity = Math.min(0.15, 0.08 + (clampedAmp * 0.05) + (this.beatDecay * 0.04));
-                    this.tunnelInnerMesh.material.opacity = innerOpacity;
-                }
-            }
-        }
-
-        // ========== PARTICLE SYSTEM UPDATE ==========
-        // Update tunnel particles - fly past camera with CLAMPED speed
-        if (this.tunnelParticles) {
-            const positions = this.tunnelParticles.geometry.attributes.position;
-            const colors = this.tunnelParticles.geometry.attributes.color;
-            const count = positions.count;
-            // Clamp particle speed to prevent excessive movement
-            const particleSpeed = Math.min(3.0, 0.6 + (clampedBass * 1.5) + (clampedAmp * 1.0));
-            
-            for (let i = 0; i < count; i++) {
-                const idx = i * 3;
-                let z = positions.array[idx + 2];
-                
-                // Move particles forward with audio-reactive speed
-                positions.array[idx + 2] += particleSpeed;
-                
-                // Reset particles that passed camera
-                if (positions.array[idx + 2] > 20) {
-                    // Reset to far distance along curve
-                    const resetT = (this.tunnelU - 0.3 + Math.random() * 0.2 + 1.0) % 1.0;
-                    const resetPoint = this.tunnelCurve.getPoint(resetT);
-                    
-                    // Random position within tunnel radius
-                    const angle = Math.random() * Math.PI * 2;
-                    const r = Math.random() * 5.0;
-                    positions.array[idx] = resetPoint.x + Math.cos(angle) * r;
-                    positions.array[idx + 1] = resetPoint.y + Math.sin(angle) * r;
-                    positions.array[idx + 2] = resetPoint.z;
-                    
-                    // Update particle color based on audio - REDUCED brightness
-                    const hue = (time * 0.08 + Math.random()) % 1;
-                    // Darker particle colors (0.2-0.5 range instead of 0.3-0.7)
-                    colors.array[idx] = 0.2 + Math.sin(hue * Math.PI * 2) * 0.15;
-                    colors.array[idx + 1] = 0.15 + Math.cos(hue * Math.PI * 2) * 0.15;
-                    colors.array[idx + 2] = 0.7; // Reduced blue component
-                }
-            }
-            positions.needsUpdate = true;
-            if (colors) colors.needsUpdate = true;
-        }
     }
 
 
