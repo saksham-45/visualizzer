@@ -659,10 +659,6 @@ export class ThreeJSVisualizer {
         // Render
         this._updateQuality(delta);
         
-        // #region agent log
-        if (this._frame % 120 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:update:render',message:'Rendering frame',data:{frame:this._frame,mode:this.mode,hasComposer:!!this.composer,sceneBackground:this.scene?.background?.getHexString?.(),tunnelGroupVisible:this.tunnelGroup?.visible,mercuryMeshVisible:this.mercuryMesh?.visible,tunnelLightVisible:this.tunnelLight?.visible,canvasZIndex:this.threeCanvas?.style?.zIndex},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,G,J'})}).catch(()=>{}); }
-        // #endregion
-        
         if (this.composer) {
             this.composer.render();
         } else {
