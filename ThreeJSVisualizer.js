@@ -562,19 +562,16 @@ export class ThreeJSVisualizer {
             if (this.godRays) this.godRays.forEach(mesh => mesh.visible = false);
             
             if (!this.tunnelGroup) {
-            this.createTunnel();
+                this.createTunnel();
             } else {
                 this.tunnelGroup.visible = true;
-                // Re-initialize camera position if tunnel already exists
-                if (this.tunnelCurve && this.camera) {
-                    const initialCamPoint = this.tunnelCurve.getPoint(this.tunnelU || 0.2);
-                    if (initialCamPoint && !isNaN(initialCamPoint.x)) {
-                        this.camera.position.copy(initialCamPoint);
-                        const initialLookAhead = this.tunnelCurve.getPoint(Math.min(0.99, (this.tunnelU || 0.2) + 0.02));
-                        if (initialLookAhead && !isNaN(initialLookAhead.x)) {
-                            this.camera.lookAt(initialLookAhead);
-                        }
-                    }
+                // Reset tunnel position for fresh start
+                this.tunnelZ = 0;
+                this.tunnelGroup.position.z = 0;
+                // Camera at origin looking down the tunnel
+                if (this.camera) {
+                    this.camera.position.set(0, 0, 0);
+                    this.camera.lookAt(0, 0, -100);
                 }
             }
         } else if (this.tunnelGroup) {
@@ -927,151 +924,146 @@ export class ThreeJSVisualizer {
     }
 
     createTunnel() {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:createTunnel:entry',message:'createTunnel called',data:{alreadyExists:!!this.tunnelGroup,hasScene:!!this.scene,hasCamera:!!this.camera},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         if (this.tunnelGroup) return;
 
         this.tunnelGroup = new THREE.Group();
         this.scene.add(this.tunnelGroup);
 
-        // ========== CINEMATIC WORMHOLE TUNNEL ==========
-        // Dark, moody sci-fi aesthetic with neon accent rings
+        // ========== INFINITE TRIPPY HYPERSPACE TUNNEL ==========
+        // Vibrant, psychedelic, seamless infinity effect
         
-        this.tunnelPoints = [];
-        this.tunnelU = 0.15; // Start slightly into the tunnel
-        this.tunnelPointsCount = 120;
-        this.tunnelBasePoints = [];
+        this.tunnelZ = 0; // Camera Z position (moves forward continuously)
+        this.tunnelSpeed = 2; // Base speed
+        const radius = 15;
 
-        // Gentle winding path - subtle curves for immersion
-        for (let i = 0; i < this.tunnelPointsCount; i++) {
-            const z = 80 - i * 14;
-            // Very gentle curves - keeps camera centered
-            const baseX = Math.sin(i * 0.15) * 1.5;
-            const baseY = Math.cos(i * 0.18) * 1.5;
-            this.tunnelPoints.push(new THREE.Vector3(baseX, baseY, z));
-            this.tunnelBasePoints.push(new THREE.Vector3(baseX, baseY, z));
-        }
-
-        this.tunnelCurve = new THREE.CatmullRomCurve3(this.tunnelPoints);
-        this.curveSmoothing = 0.12;
+        // ========== MAIN TUNNEL - Cylindrical geometry that repeats ==========
+        // Create a long cylinder that we'll move and recycle
+        const tunnelLength = 2000;
+        const tunnelGeo = new THREE.CylinderGeometry(radius, radius, tunnelLength, 64, 1, true);
+        tunnelGeo.rotateX(Math.PI / 2); // Align with Z axis
         
-        // Initialize camera
-        const initialCamPoint = this.tunnelCurve.getPoint(this.tunnelU);
-        if (this.camera) {
-            this.camera.position.copy(initialCamPoint);
-            const initialLookAhead = this.tunnelCurve.getPoint(Math.min(0.99, this.tunnelU + 0.03));
-            this.camera.lookAt(initialLookAhead);
-        }
-
-        const radius = 12;
-        const tubularSegments = 200;
-        const radialSegments = 32;
-
-        // ========== MAIN TUNNEL STRUCTURE - Dark metallic walls ==========
-        const tunnelGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius, radialSegments, false);
-        this.tunnelMaterial = new THREE.MeshStandardMaterial({
-            color: 0x0a0a12, // Very dark blue-black
-            emissive: 0x0a0515, // Subtle purple tint
-            emissiveIntensity: 0.3,
-            metalness: 0.95,
-            roughness: 0.4,
+        this.tunnelMaterial = new THREE.MeshBasicMaterial({
+            color: 0x110022,
             side: THREE.BackSide,
-            transparent: false
+            transparent: true,
+            opacity: 0.95
         });
         this.tunnelMesh = new THREE.Mesh(tunnelGeo, this.tunnelMaterial);
+        this.tunnelMesh.position.z = -tunnelLength / 2;
         this.tunnelGroup.add(this.tunnelMesh);
 
-        // ========== NEON RING SEGMENTS - Creates depth perception ==========
+        // ========== NEON RINGS - Many vibrant rings for infinity effect ==========
         this.tunnelRings = [];
-        const ringCount = 60;
+        const ringCount = 100; // Many rings for seamless look
+        const ringSpacing = 20;
+        
         for (let i = 0; i < ringCount; i++) {
-            const t = i / ringCount;
-            const point = this.tunnelCurve.getPoint(t);
-            const tangent = this.tunnelCurve.getTangent(t);
+            // Vibrant rainbow colors
+            const hue = (i / ringCount) % 1;
+            const color = new THREE.Color().setHSL(hue, 1.0, 0.6);
             
-            // Alternating ring colors for variety
-            const ringColor = i % 3 === 0 ? 0x00ffff : (i % 3 === 1 ? 0xff00aa : 0x4400ff);
-            const ringRadius = radius - 0.3;
-            
-            const ringGeo = new THREE.TorusGeometry(ringRadius, 0.08, 8, 48);
+            // Thick glowing rings
+            const ringGeo = new THREE.TorusGeometry(radius - 0.5, 0.15, 16, 64);
             const ringMat = new THREE.MeshBasicMaterial({
-                color: ringColor,
-            transparent: true,
-                opacity: 0.6,
+                color: color,
+                transparent: true,
+                opacity: 0.9,
                 blending: THREE.AdditiveBlending
             });
             
             const ring = new THREE.Mesh(ringGeo, ringMat);
-            ring.position.copy(point);
+            ring.position.z = -i * ringSpacing;
+            ring.rotation.x = Math.PI / 2;
             
-            // Orient ring perpendicular to tunnel path
-            const up = new THREE.Vector3(0, 1, 0);
-            const quaternion = new THREE.Quaternion().setFromUnitVectors(up, tangent);
-            ring.quaternion.copy(quaternion);
-            ring.rotateX(Math.PI / 2);
+            ring.userData = { 
+                baseZ: -i * ringSpacing,
+                hue: hue,
+                index: i
+            };
             
-            ring.userData = { baseOpacity: 0.4 + Math.random() * 0.3, t: t };
             this.tunnelRings.push(ring);
             this.tunnelGroup.add(ring);
         }
 
-        // ========== HEXAGONAL GRID WIREFRAME - Sci-fi texture ==========
-        const wireGeo = new THREE.TubeGeometry(this.tunnelCurve, 80, radius - 0.1, 6, false);
-        const wireMat = new THREE.MeshBasicMaterial({
-            color: 0x1a0a2e, // Dark purple
-            wireframe: true,
-            transparent: true,
-            opacity: 0.25
-        });
-        this.tunnelWireframe = new THREE.Mesh(wireGeo, wireMat);
-        this.tunnelGroup.add(this.tunnelWireframe);
+        // ========== SPIRAL LINES - Trippy rotating spirals ==========
+        this.spiralLines = [];
+        const spiralCount = 8;
+        for (let s = 0; s < spiralCount; s++) {
+            const points = [];
+            const spiralTurns = 20;
+            const spiralLength = 1500;
+            const pointCount = 500;
+            
+            for (let i = 0; i < pointCount; i++) {
+                const t = i / pointCount;
+                const angle = (s / spiralCount) * Math.PI * 2 + t * spiralTurns * Math.PI * 2;
+                const z = -t * spiralLength;
+                const r = radius - 1;
+                points.push(new THREE.Vector3(
+                    Math.cos(angle) * r,
+                    Math.sin(angle) * r,
+                    z
+                ));
+            }
+            
+            const spiralGeo = new THREE.BufferGeometry().setFromPoints(points);
+            const spiralMat = new THREE.LineBasicMaterial({
+                color: new THREE.Color().setHSL(s / spiralCount, 1.0, 0.7),
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const spiral = new THREE.Line(spiralGeo, spiralMat);
+            spiral.userData = { baseAngle: (s / spiralCount) * Math.PI * 2 };
+            this.spiralLines.push(spiral);
+            this.tunnelGroup.add(spiral);
+        }
 
-        // ========== INNER GLOW CORE - Subtle light in the distance ==========
-        const coreGeo = new THREE.TubeGeometry(this.tunnelCurve, 100, 0.8, 16, false);
-        const coreMat = new THREE.MeshBasicMaterial({
-            color: 0x6633ff,
+        // ========== PARTICLE STARS - Flying through space ==========
+        this.createHyperspaceParticles();
+
+        // ========== CENTRAL GLOW - Light at the end ==========
+        const glowGeo = new THREE.SphereGeometry(3, 32, 32);
+        const glowMat = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
             transparent: true,
-            opacity: 0.15,
+            opacity: 0.8,
             blending: THREE.AdditiveBlending
         });
-        this.tunnelCore = new THREE.Mesh(coreGeo, coreMat);
-        this.tunnelGroup.add(this.tunnelCore);
-
-        // ========== SPEED LINE PARTICLES ==========
-        this.createSpeedLines();
+        this.centerGlow = new THREE.Mesh(glowGeo, glowMat);
+        this.centerGlow.position.z = -800;
+        this.tunnelGroup.add(this.centerGlow);
+        
+        // Camera starts at origin looking down -Z
+        if (this.camera) {
+            this.camera.position.set(0, 0, 0);
+            this.camera.lookAt(0, 0, -100);
+        }
         
         this.tunnelGroup.visible = true;
     }
     
-    createSpeedLines() {
-        // Elongated particles that streak past for speed sensation
-        const lineCount = 800;
-        const positions = new Float32Array(lineCount * 3);
-        const colors = new Float32Array(lineCount * 3);
-        const sizes = new Float32Array(lineCount);
+    createHyperspaceParticles() {
+        const particleCount = 1500;
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const sizes = new Float32Array(particleCount);
         
-        for (let i = 0; i < lineCount; i++) {
-            const t = Math.random();
-            const point = this.tunnelCurve.getPoint(t);
-            const tangent = this.tunnelCurve.getTangent(t);
-            
-            // Distribute around the tunnel walls
+        for (let i = 0; i < particleCount; i++) {
+            // Distribute in a cylinder around the camera path
             const angle = Math.random() * Math.PI * 2;
-            const r = 2 + Math.random() * 8; // Between center and walls
+            const r = 2 + Math.random() * 12;
+            positions[i * 3] = Math.cos(angle) * r;
+            positions[i * 3 + 1] = Math.sin(angle) * r;
+            positions[i * 3 + 2] = -Math.random() * 1500;
             
-            const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
-            const normal = new THREE.Vector3().crossVectors(tangent, binormal).normalize();
-            
-            positions[i * 3] = point.x + Math.cos(angle) * r * binormal.x + Math.sin(angle) * r * normal.x;
-            positions[i * 3 + 1] = point.y + Math.cos(angle) * r * binormal.y + Math.sin(angle) * r * normal.y;
-            positions[i * 3 + 2] = point.z + Math.cos(angle) * r * binormal.z + Math.sin(angle) * r * normal.z;
-            
-            // Color gradient: cyan to magenta
-            const colorT = Math.random();
-            colors[i * 3] = 0.2 + colorT * 0.8; // R
-            colors[i * 3 + 1] = 0.8 - colorT * 0.5; // G  
-            colors[i * 3 + 2] = 1.0; // B
+            // Rainbow colors
+            const hue = Math.random();
+            const color = new THREE.Color().setHSL(hue, 1.0, 0.7);
+            colors[i * 3] = color.r;
+            colors[i * 3 + 1] = color.g;
+            colors[i * 3 + 2] = color.b;
             
             sizes[i] = 1 + Math.random() * 3;
         }
@@ -1079,184 +1071,180 @@ export class ThreeJSVisualizer {
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-        geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
         
         const material = new THREE.PointsMaterial({
-            size: 2,
+            size: 2.5,
             vertexColors: true,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.9,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
             map: this.createSoftParticleTexture()
         });
         
-        this.speedLines = new THREE.Points(geometry, material);
-        this.tunnelGroup.add(this.speedLines);
+        this.hyperspaceParticles = new THREE.Points(geometry, material);
+        this.tunnelGroup.add(this.hyperspaceParticles);
     }
 
     updateTunnel(time, bass, mid, high, amp) {
-        if (!this.tunnelGroup || !this.tunnelCurve || !this.tunnelBasePoints || !this.camera) {
+        if (!this.tunnelGroup || !this.camera) {
             if (!this.tunnelGroup) {
                 this.createTunnel();
             }
             return;
         }
 
-        // Ensure tunnelU is initialized
-        if (typeof this.tunnelU !== 'number' || isNaN(this.tunnelU)) {
-            this.tunnelU = 0.15;
-        }
-
-        // Clamp audio values for subtle reactivity
-        const clampedBass = Math.min(1.0, bass);
+        // Audio reactivity - clamped but still responsive
+        const clampedBass = Math.min(1.2, bass);
         const clampedMid = Math.min(1.0, mid);
         const clampedHigh = Math.min(1.0, high);
-        const clampedAmp = Math.min(0.5, amp); // Extra clamped for subtlety
+        const clampedAmp = Math.min(0.8, amp);
 
-        // ========== GENTLE CURVE ANIMATION ==========
-        // Very subtle curve movement - mostly static tunnel with slight breathing
-        for (let i = 0; i < this.tunnelPointsCount; i++) {
-            const basePoint = this.tunnelBasePoints[i];
-            const progress = i / this.tunnelPointsCount;
-            
-            // Very gentle breathing motion - almost imperceptible
-            const breathX = Math.sin(progress * Math.PI * 2 + time * 0.3) * 0.3 * clampedBass;
-            const breathY = Math.cos(progress * Math.PI * 2.5 + time * 0.25) * 0.25 * clampedMid;
-            
-            const currentPoint = this.tunnelPoints[i];
-            currentPoint.x += ((basePoint.x + breathX) - currentPoint.x) * 0.08;
-            currentPoint.y += ((basePoint.y + breathY) - currentPoint.y) * 0.08;
-        }
+        // ========== INFINITE FORWARD MOTION ==========
+        // Speed based on music - faster on bass hits
+        const baseSpeed = 3;
+        const audioBoost = clampedBass * 4 + clampedAmp * 2;
+        const speed = baseSpeed + audioBoost;
         
-        // Rebuild curve
-        this.tunnelCurve = new THREE.CatmullRomCurve3(this.tunnelPoints);
-
-        // ========== SMOOTH FORWARD MOTION ==========
-        // Gentle, consistent speed with subtle audio boost
-        const baseSpeed = 0.0008;
-        const audioBoost = clampedBass * 0.001 + clampedAmp * 0.0005;
-        const speed = baseSpeed + Math.min(0.002, audioBoost);
-
-        this.tunnelU += speed;
-        if (this.tunnelU >= 0.92) {
-            this.tunnelU = 0.08;
-        }
-        this.tunnelU = Math.max(0.05, Math.min(0.95, this.tunnelU));
-
-        // ========== CAMERA - SMOOTH FLIGHT ==========
-        const camPoint = this.tunnelCurve.getPoint(this.tunnelU);
-        if (!camPoint || isNaN(camPoint.x)) return;
+        this.tunnelZ += speed;
         
-        const lookAheadU = Math.min(0.98, this.tunnelU + 0.04);
-        const lookAtPoint = this.tunnelCurve.getPoint(lookAheadU);
-        if (!lookAtPoint || isNaN(lookAtPoint.x)) return;
+        // Move the entire tunnel forward with camera
+        // This creates the illusion of infinite travel
+        this.tunnelGroup.position.z = this.tunnelZ;
         
-        // Smooth camera interpolation
-        this.camera.position.lerp(camPoint, 0.15);
-        this.camera.lookAt(lookAtPoint);
+        // Camera stays at origin, tunnel moves around it
+        this.camera.position.set(0, 0, 0);
+        this.camera.lookAt(0, 0, -100);
+        
+        // Slight camera sway for trippy effect
+        const sway = Math.sin(time * 0.5) * 0.3;
+        const tilt = Math.cos(time * 0.3) * 0.2;
+        this.camera.position.x = sway * (1 + clampedBass * 0.5);
+        this.camera.position.y = tilt * (1 + clampedMid * 0.3);
 
-        // ========== ANIMATE NEON RINGS ==========
+        // ========== NEON RINGS - INFINITE LOOP ==========
+        const ringSpacing = 20;
+        const totalRingDistance = this.tunnelRings.length * ringSpacing;
+        
         if (this.tunnelRings) {
             this.tunnelRings.forEach((ring, i) => {
-                const ringT = ring.userData.t;
-                const distFromCamera = Math.abs(ringT - this.tunnelU);
+                // Move ring position relative to camera
+                let ringZ = ring.userData.baseZ - (this.tunnelZ % totalRingDistance);
                 
-                // Rings near camera are brighter
-                const proximityGlow = Math.max(0, 1 - distFromCamera * 3);
-                const baseOpacity = ring.userData.baseOpacity;
-                const audioGlow = clampedBass * 0.3 + clampedHigh * 0.2;
+                // Wrap rings that pass behind camera
+                while (ringZ > 50) {
+                    ringZ -= totalRingDistance;
+                }
+                while (ringZ < -totalRingDistance + 50) {
+                    ringZ += totalRingDistance;
+                }
                 
-                // Pulse effect
-                const pulse = Math.sin(time * 3 + i * 0.5) * 0.1;
+                ring.position.z = ringZ;
                 
-                ring.material.opacity = Math.min(0.8, baseOpacity * (0.3 + proximityGlow * 0.5 + audioGlow + pulse));
+                // Distance-based effects
+                const distFromCamera = Math.abs(ringZ);
+                const proximityFade = Math.max(0.1, 1 - distFromCamera / 500);
                 
-                // Subtle scale pulse on beat
-                const scalePulse = 1 + this.beatDecay * 0.05;
+                // VIBRANT COLORS - Rainbow cycling with music
+                const hue = (ring.userData.hue + time * 0.1 + clampedHigh * 0.3) % 1;
+                ring.material.color.setHSL(hue, 1.0, 0.65);
+                
+                // Opacity pulses with beat
+                const beatPulse = this.beatDecay * 0.4;
+                const basePulse = Math.sin(time * 4 + i * 0.3) * 0.15;
+                ring.material.opacity = Math.min(1.0, 0.5 + proximityFade * 0.4 + beatPulse + basePulse + clampedBass * 0.2);
+                
+                // Scale pulse on beats
+                const scalePulse = 1 + this.beatDecay * 0.15 + clampedBass * 0.1;
                 ring.scale.setScalar(scalePulse);
+                
+                // Rings rotate with music
+                ring.rotation.z += (0.01 + clampedHigh * 0.02) * (i % 2 === 0 ? 1 : -1);
             });
         }
 
-        // ========== ANIMATE SPEED LINES ==========
-        if (this.speedLines) {
-            const positions = this.speedLines.geometry.attributes.position.array;
-            const speedLineDelta = speed * 800 + clampedBass * 5;
-            
-            for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 2] += speedLineDelta; // Move toward camera
+        // ========== SPIRAL LINES - ROTATING ==========
+        if (this.spiralLines) {
+            this.spiralLines.forEach((spiral, i) => {
+                // Rotate spirals with music
+                spiral.rotation.z += 0.005 + clampedBass * 0.01;
                 
-                // Reset particles that pass the camera
-                if (positions[i + 2] > this.camera.position.z + 50) {
-                    positions[i + 2] = this.camera.position.z - 400 - Math.random() * 200;
-                    // Redistribute around tunnel
+                // Color cycling
+                const hue = (i / this.spiralLines.length + time * 0.05) % 1;
+                spiral.material.color.setHSL(hue, 1.0, 0.7);
+                spiral.material.opacity = 0.4 + clampedMid * 0.3 + this.beatDecay * 0.2;
+            });
+        }
+
+        // ========== HYPERSPACE PARTICLES ==========
+        if (this.hyperspaceParticles) {
+            const positions = this.hyperspaceParticles.geometry.attributes.position.array;
+            const colors = this.hyperspaceParticles.geometry.attributes.color.array;
+            const particleSpeed = speed * 0.8;
+            
+            for (let i = 0; i < positions.length / 3; i++) {
+                const idx = i * 3;
+                
+                // Move particles toward camera
+                positions[idx + 2] += particleSpeed;
+                
+                // Reset particles that pass camera
+                if (positions[idx + 2] > 100) {
                     const angle = Math.random() * Math.PI * 2;
-                    const r = 2 + Math.random() * 8;
-                    positions[i] = this.camera.position.x + Math.cos(angle) * r;
-                    positions[i + 1] = this.camera.position.y + Math.sin(angle) * r;
+                    const r = 2 + Math.random() * 12;
+                    positions[idx] = Math.cos(angle) * r;
+                    positions[idx + 1] = Math.sin(angle) * r;
+                    positions[idx + 2] = -1200 - Math.random() * 300;
+                    
+                    // New rainbow color
+                    const hue = Math.random();
+                    const color = new THREE.Color().setHSL(hue, 1.0, 0.7);
+                    colors[idx] = color.r;
+                    colors[idx + 1] = color.g;
+                    colors[idx + 2] = color.b;
                 }
             }
-            this.speedLines.geometry.attributes.position.needsUpdate = true;
             
-            // Opacity pulses with music
-            this.speedLines.material.opacity = 0.4 + clampedBass * 0.3 + clampedHigh * 0.2;
+            this.hyperspaceParticles.geometry.attributes.position.needsUpdate = true;
+            this.hyperspaceParticles.geometry.attributes.color.needsUpdate = true;
+            
+            // Size and opacity pulse with music
+            this.hyperspaceParticles.material.size = 2 + clampedBass * 2 + this.beatDecay * 1.5;
+            this.hyperspaceParticles.material.opacity = 0.7 + clampedAmp * 0.3;
         }
 
-        // ========== TUNNEL WALL EFFECTS ==========
+        // ========== CENTER GLOW - Light at end of tunnel ==========
+        if (this.centerGlow) {
+            // Keep glow far ahead
+            this.centerGlow.position.z = -800;
+            
+            // Pulsing glow
+            const glowPulse = 1 + Math.sin(time * 2) * 0.3 + clampedBass * 0.5;
+            this.centerGlow.scale.setScalar(glowPulse);
+            
+            // Color cycling
+            const glowHue = (time * 0.1) % 1;
+            this.centerGlow.material.color.setHSL(glowHue, 0.8, 0.8);
+            this.centerGlow.material.opacity = 0.6 + clampedAmp * 0.3;
+        }
+
+        // ========== TUNNEL WALL COLOR ==========
         if (this.tunnelMaterial) {
-            // Subtle emissive pulse - NOT flashy white
-            const emissiveIntensity = 0.2 + clampedBass * 0.15 + this.beatDecay * 0.1;
-            this.tunnelMaterial.emissiveIntensity = Math.min(0.5, emissiveIntensity);
-            
-            // Subtle color shift
-            const hue = (time * 0.02 + clampedMid * 0.05) % 1;
-            this.tunnelMaterial.emissive.setHSL(hue * 0.15 + 0.7, 0.5, 0.08); // Purple range
+            // Subtle color wash on walls
+            const wallHue = (time * 0.03) % 1;
+            this.tunnelMaterial.color.setHSL(wallHue, 0.3, 0.1);
         }
 
-        // ========== WIREFRAME ANIMATION ==========
-        if (this.tunnelWireframe) {
-            this.tunnelWireframe.material.opacity = 0.15 + clampedHigh * 0.15;
-        }
-
-        // ========== CORE GLOW ==========
-        if (this.tunnelCore) {
-            this.tunnelCore.material.opacity = 0.1 + clampedBass * 0.1 + this.beatDecay * 0.05;
-        }
-
-        // ========== LIGHTS FOLLOW CAMERA ==========
-        if (this.tunnelLight) {
-            this.tunnelLight.position.copy(this.camera.position);
-            this.tunnelLight.position.z -= 30;
-        }
-        if (this.tunnelLight2) {
-            this.tunnelLight2.position.copy(this.camera.position);
-            this.tunnelLight2.position.x += 8;
-            this.tunnelLight2.position.z -= 15;
-        }
-        if (this.tunnelLight3) {
-            this.tunnelLight3.position.copy(this.camera.position);
-            this.tunnelLight3.position.z += 40;
-        }
-        
-        // Light intensity pulses subtly with music
-        if (this.tunnelLight) {
-            this.tunnelLight.intensity = 0.8 + clampedBass * 0.4;
-        }
-        if (this.tunnelLight2) {
-            this.tunnelLight2.intensity = 0.5 + clampedMid * 0.3;
-        }
-
-        // ========== SUBTLE CAMERA ROLL ==========
-        const tangent = this.tunnelCurve.getTangent(this.tunnelU);
-        if (tangent && !isNaN(tangent.x)) {
-            const rollFromCurve = Math.atan2(tangent.y, tangent.x) * 0.02;
-            const targetRoll = rollFromCurve + Math.sin(time * 0.5) * 0.02;
-            this.camera.rotation.z += (targetRoll - this.camera.rotation.z) * 0.08;
-        }
+        // ========== TRIPPY CAMERA ROLL ==========
+        // Slow continuous roll for psychedelic effect
+        const targetRoll = Math.sin(time * 0.3) * 0.1 + Math.cos(time * 0.2) * 0.05;
+        this.camera.rotation.z += (targetRoll - this.camera.rotation.z) * 0.05;
         
         // Wide FOV for immersive tunnel view
-        this.camera.fov = 75;
-        this.camera.updateProjectionMatrix();
+        if (this.camera.fov !== 85) {
+            this.camera.fov = 85;
+            this.camera.updateProjectionMatrix();
+        }
     }
 
 
