@@ -145,7 +145,8 @@ export class FluidVisualizers {
             'liquidMetal',
             'metallicNebula',
             'liquidGeometry',
-            'tunnel'
+            'tunnel',
+            'depthlines'  // Alias for tunnel - keep both for compatibility
         ];
     }
 }

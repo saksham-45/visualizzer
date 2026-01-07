@@ -70,13 +70,14 @@ export class ThreeJSVisualizer {
             // Force the Three.js layer to truly cover the viewport, independent of
             // any parent layout quirks that could make it render in a smaller
             // region (top-left quarter, etc.).
+            // CRITICAL: z-index must be HIGHER than 2D canvas to be visible
             this.threeCanvas.style.cssText = `
                 position: fixed;
                 top: 0;
                 left: 0;
                 width: 100vw;
                 height: 100vh;
-                z-index: 0;
+                z-index: 5;
                 pointer-events: none;
                 background: #000;
             `;
@@ -523,31 +524,36 @@ export class ThreeJSVisualizer {
         }
 
         if (mode === 'tunnel' || mode === 'depthlines') {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:setMode:tunnel',message:'Setting tunnel mode',data:{mode,tunnelGroupExists:!!this.tunnelGroup,tunnelMeshExists:!!this.tunnelMesh},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
-            
             // CRITICAL: Set black background for tunnel mode
             this.scene.background = new THREE.Color(0x000000);
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:setMode:tunnel',message:'Setting tunnel mode - background set to black',data:{mode,tunnelGroupExists:!!this.tunnelGroup,tunnelMeshExists:!!this.tunnelMesh,sceneBackgroundSet:true,hasLights:!!this.tunnelLight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E,F,G'})}).catch(()=>{});
+            // #endregion
             
             // CRITICAL: Add tunnel-specific lighting
             if (!this.tunnelLight) {
                 // Ambient light so tunnel walls are visible
-                this.tunnelAmbient = new THREE.AmbientLight(0x4466ff, 0.5);
+                this.tunnelAmbient = new THREE.AmbientLight(0x6688ff, 0.8);
                 this.scene.add(this.tunnelAmbient);
                 
-                // Point light that follows the camera
-                this.tunnelLight = new THREE.PointLight(0x00aaff, 2.0, 100);
+                // Point light that follows the camera - LARGER range for bigger tunnel
+                this.tunnelLight = new THREE.PointLight(0x00ccff, 3.0, 200);
                 this.scene.add(this.tunnelLight);
                 
-                // Secondary light for depth
-                this.tunnelLight2 = new THREE.PointLight(0xff44aa, 1.5, 80);
+                // Secondary light for depth - pink/magenta accent
+                this.tunnelLight2 = new THREE.PointLight(0xff66aa, 2.5, 150);
                 this.scene.add(this.tunnelLight2);
+                
+                // Third light for rear illumination
+                this.tunnelLight3 = new THREE.PointLight(0x66ff66, 2.0, 120);
+                this.scene.add(this.tunnelLight3);
             }
             // Enable tunnel lights
             if (this.tunnelAmbient) this.tunnelAmbient.visible = true;
             if (this.tunnelLight) this.tunnelLight.visible = true;
             if (this.tunnelLight2) this.tunnelLight2.visible = true;
+            if (this.tunnelLight3) this.tunnelLight3.visible = true;
             
             // Hide mercury mesh
             if (this.mercuryMesh) this.mercuryMesh.visible = false;
@@ -577,6 +583,7 @@ export class ThreeJSVisualizer {
             if (this.tunnelAmbient) this.tunnelAmbient.visible = false;
             if (this.tunnelLight) this.tunnelLight.visible = false;
             if (this.tunnelLight2) this.tunnelLight2.visible = false;
+            if (this.tunnelLight3) this.tunnelLight3.visible = false;
         }
     }
 
@@ -646,6 +653,11 @@ export class ThreeJSVisualizer {
 
         // Render
         this._updateQuality(delta);
+        
+        // #region agent log
+        if (this._frame % 120 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:update:render',message:'Rendering frame',data:{frame:this._frame,mode:this.mode,hasComposer:!!this.composer,sceneBackground:this.scene?.background?.getHexString?.(),tunnelGroupVisible:this.tunnelGroup?.visible,mercuryMeshVisible:this.mercuryMesh?.visible,tunnelLightVisible:this.tunnelLight?.visible,canvasZIndex:this.threeCanvas?.style?.zIndex},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'F,G,J'})}).catch(()=>{}); }
+        // #endregion
+        
         if (this.composer) {
             this.composer.render();
         } else {
@@ -918,12 +930,13 @@ export class ThreeJSVisualizer {
         this.tunnelPointsCount = 100; // More points for smoother, longer tunnel
         this.tunnelBasePoints = []; // Store base positions for audio-reactive deformation
 
-        // Initial points for a winding path with more variation
-        // Start curve further ahead (positive Z) and extend far back (negative Z)
+        // Initial points for a winding path - CAMERA MUST STAY INSIDE TUNNEL
+        // Curve amplitude MUST be much smaller than tunnel radius (15) to keep camera inside
         for (let i = 0; i < this.tunnelPointsCount; i++) {
             const z = 100 - i * 15; // Start at z=100, go back to z=-1400 (longer tunnel)
-            const baseX = Math.sin(i * 0.35) * 8;
-            const baseY = Math.cos(i * 0.4) * 8;
+            // REDUCED amplitude to 2 - keeps camera well inside the 15-radius tunnel
+            const baseX = Math.sin(i * 0.25) * 2;
+            const baseY = Math.cos(i * 0.3) * 2;
             const x = baseX;
             const y = baseY;
             this.tunnelPoints.push(new THREE.Vector3(x, y, z));
@@ -943,9 +956,9 @@ export class ThreeJSVisualizer {
             this.camera.lookAt(initialLookAhead);
         }
 
-        // Tube Geometry along the curve - optimized for performance
+        // Tube Geometry along the curve - LARGE radius so camera stays inside
         const tubularSegments = 150; // Reduced for better performance
-        const radius = 6;
+        const radius = 15; // INCREASED - camera path amplitude is ~5, so 15 gives plenty of room
         const radialSegments = 24; // Reduced for better performance
         const closed = false;
 
@@ -975,9 +988,9 @@ export class ThreeJSVisualizer {
         // Outer glow layer - visible neon glow
         const outerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius + 1.0, radialSegments, closed);
         const outerMat = new THREE.MeshBasicMaterial({
-            color: 0x4488ff, // Bright blue glow
+            color: 0x6699ff, // Bright blue glow
             transparent: true,
-            opacity: 0.4,
+            opacity: 0.5,
             side: THREE.BackSide,
             blending: THREE.AdditiveBlending,
             depthWrite: false
@@ -986,11 +999,11 @@ export class ThreeJSVisualizer {
         this.tunnelGroup.add(this.tunnelOuterMesh);
         
         // Inner neon ring layer - creates depth and speed lines
-        const innerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius - 0.5, radialSegments, closed);
+        const innerGeo = new THREE.TubeGeometry(this.tunnelCurve, tubularSegments, radius - 1.0, radialSegments, closed);
         const innerMat = new THREE.MeshBasicMaterial({
             color: 0x00ffff, // Cyan inner glow
             transparent: true,
-            opacity: 0.3,
+            opacity: 0.4,
             side: THREE.BackSide,
             blending: THREE.AdditiveBlending,
             depthWrite: false
@@ -1015,9 +1028,9 @@ export class ThreeJSVisualizer {
             const point = this.tunnelCurve.getPoint(t);
             const tangent = this.tunnelCurve.getTangent(t);
 
-            // Random radial offset
+            // Random radial offset - distribute within the 15-radius tunnel
             const angle = Math.random() * Math.PI * 2;
-            const r = Math.random() * 5.5;
+            const r = 3 + Math.random() * 10; // Between 3 and 13, inside 15-radius tunnel
             const binormal = new THREE.Vector3().crossVectors(tangent, new THREE.Vector3(0, 1, 0)).normalize();
             const normal = new THREE.Vector3().crossVectors(tangent, binormal).normalize();
 
@@ -1029,10 +1042,10 @@ export class ThreeJSVisualizer {
             positions[i * 3 + 1] = point.y + offset.y;
             positions[i * 3 + 2] = point.z + offset.z;
 
-            // Subtle colors - REDUCED brightness
-            colors[i * 3] = 0.3 + Math.random() * 0.3;
-            colors[i * 3 + 1] = 0.2 + Math.random() * 0.2;
-            colors[i * 3 + 2] = 0.6 + Math.random() * 0.3;
+            // Vibrant colors for visibility
+            colors[i * 3] = 0.4 + Math.random() * 0.4;     // R
+            colors[i * 3 + 1] = 0.3 + Math.random() * 0.4; // G
+            colors[i * 3 + 2] = 0.7 + Math.random() * 0.3; // B - more blue
         }
 
         particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
@@ -1118,26 +1131,26 @@ export class ThreeJSVisualizer {
         }
 
         // ========== AUDIO-REACTIVE TUNNEL CURVES ==========
-        // Update tunnel curve shape based on audio frequencies - CLAMPED to prevent excessive deformation
-        const curveIntensity = Math.min(0.8, bass * 1.2 + mid * 0.8 + high * 0.5);
+        // Update tunnel curve shape based on audio - MUST keep total amplitude < tunnel radius (15)
+        // Max deformation should be ~3-4 units to stay well inside the 15-radius tunnel
         
         for (let i = 0; i < this.tunnelPointsCount; i++) {
             const basePoint = this.tunnelBasePoints[i];
             const progress = i / this.tunnelPointsCount;
             
-            // Frequency-based curve deformation - REDUCED multipliers
-            // Bass controls horizontal curves (left/right) - clamped
-            const bassCurve = Math.sin(progress * Math.PI * 4 + time * 0.8) * Math.min(8, bass * 6);
-            // Mid controls vertical curves (up/down) - clamped
-            const midCurve = Math.cos(progress * Math.PI * 3.5 + time * 0.6) * Math.min(6, mid * 5);
-            // High frequencies add quick twists - clamped
-            const highTwist = Math.sin(progress * Math.PI * 8 + time * 2) * Math.min(4, high * 3);
+            // Frequency-based curve deformation - SMALL values to stay inside tunnel
+            // Bass controls horizontal curves (left/right) - max 2 units
+            const bassCurve = Math.sin(progress * Math.PI * 4 + time * 0.8) * Math.min(2, bass * 1.5);
+            // Mid controls vertical curves (up/down) - max 1.5 units
+            const midCurve = Math.cos(progress * Math.PI * 3.5 + time * 0.6) * Math.min(1.5, mid * 1.2);
+            // High frequencies add quick twists - max 1 unit
+            const highTwist = Math.sin(progress * Math.PI * 8 + time * 2) * Math.min(1, high * 0.8);
             
-            // Beat-driven sudden curves - REDUCED
-            const beatCurveX = Math.sin(time * 5 + progress * 10) * Math.min(5, this.beatDecay * 4);
-            const beatCurveY = Math.cos(time * 4 + progress * 9) * Math.min(4, this.beatDecay * 3);
+            // Beat-driven sudden curves - max 1 unit
+            const beatCurveX = Math.sin(time * 5 + progress * 10) * Math.min(1, this.beatDecay * 0.8);
+            const beatCurveY = Math.cos(time * 4 + progress * 9) * Math.min(1, this.beatDecay * 0.6);
             
-            // Calculate new position
+            // Calculate new position - total max deformation ~5-6 units, well inside 15-radius tunnel
             const newX = basePoint.x + bassCurve + beatCurveX + highTwist * 0.3;
             const newY = basePoint.y + midCurve + beatCurveY;
             
@@ -1157,7 +1170,7 @@ export class ThreeJSVisualizer {
                 const newGeometry = new THREE.TubeGeometry(
                     this.tunnelCurve,
                     150, // tubularSegments (matches creation)
-                    6,   // radius
+                    15,  // radius - LARGE to keep camera inside
                     24,  // radialSegments (matches creation)
                     false // closed
                 );
@@ -1169,7 +1182,7 @@ export class ThreeJSVisualizer {
                     const outerGeo = new THREE.TubeGeometry(
                         this.tunnelCurve,
                         150,
-                        6.8,
+                        16,  // Slightly larger than main tunnel
                         24,
                         false
                     );
@@ -1182,7 +1195,7 @@ export class ThreeJSVisualizer {
                     const innerGeo = new THREE.TubeGeometry(
                         this.tunnelCurve,
                         150,
-                        4.5,
+                        14,  // Slightly smaller than main tunnel
                         24,
                         false
                     );
@@ -1253,17 +1266,26 @@ export class ThreeJSVisualizer {
         // CRITICAL: Move tunnel lights with camera for proper illumination
         if (this.tunnelLight) {
             this.tunnelLight.position.copy(this.camera.position);
-            // Offset slightly forward to light the path ahead
-            this.tunnelLight.position.z -= 20;
+            // Offset forward to light the path ahead
+            this.tunnelLight.position.z -= 40;
         }
         if (this.tunnelLight2) {
             this.tunnelLight2.position.copy(this.camera.position);
+            // Offset to the side for accent lighting
+            this.tunnelLight2.position.x += 10;
+            this.tunnelLight2.position.z -= 20;
+        }
+        if (this.tunnelLight3) {
+            this.tunnelLight3.position.copy(this.camera.position);
             // Offset behind camera for rear illumination
-            this.tunnelLight2.position.z += 30;
+            this.tunnelLight3.position.z += 50;
         }
         
+        // Calculate camera distance from tunnel center for debugging
+        const camDistFromCenter = Math.sqrt(camPoint.x * camPoint.x + camPoint.y * camPoint.y);
+        
         // #region agent log
-        if (this._frame % 60 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:cameraSet',message:'Camera position set',data:{tunnelU:this.tunnelU,camPoint:{x:camPoint.x,y:camPoint.y,z:camPoint.z},lookAtPoint:{x:lookAtPoint.x,y:lookAtPoint.y,z:lookAtPoint.z},cameraPos:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},cameraFov:this.camera.fov,sceneBackground:this.scene?.background?.getHexString?.()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D,F,G'})}).catch(()=>{}); }
+        if (this._frame % 60 === 0) { fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:cameraSet',message:'Camera position set',data:{tunnelU:this.tunnelU,camPoint:{x:camPoint.x,y:camPoint.y,z:camPoint.z},camDistFromCenter:camDistFromCenter,tunnelRadius:15,isInsideTunnel:camDistFromCenter<15,lookAtPoint:{x:lookAtPoint.x,y:lookAtPoint.y,z:lookAtPoint.z},cameraPos:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},cameraFov:this.camera.fov,sceneBackground:this.scene?.background?.getHexString?.()},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B,D,F,G,K'})}).catch(()=>{}); }
         // #endregion
 
         // ========== CAMERA ROLL - MINIMAL ==========
