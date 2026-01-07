@@ -144,9 +144,7 @@ export class FluidVisualizers {
             'mercuryOrbs',
             'liquidMetal',
             'metallicNebula',
-            'liquidGeometry',
-            'tunnel',
-            'depthlines'  // Alias for tunnel - keep both for compatibility
+            'liquidGeometry'
         ];
     }
 }

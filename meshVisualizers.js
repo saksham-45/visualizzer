@@ -176,7 +176,7 @@ export class MeshVisualizers {
 
         // Occasional random pick for variety
         if (Math.random() < 0.15) {
-            const allVizs = ['spiral1', 'spiral2', 'spiral3', 'spiral4', 'kaleidoscope', 'mandala', 'fractal', 'tunnel', 'wave', 'flowing', 'cyclone', 'tornado', 'mandala', 'combined'];
+            const allVizs = ['spiral1', 'spiral2', 'spiral3', 'spiral4', 'kaleidoscope', 'mandala', 'fractal', 'wave', 'flowing', 'cyclone', 'tornado', 'mandala', 'combined'];
             selectedViz = allVizs[Math.floor(Math.random() * allVizs.length)];
         }
 
@@ -465,12 +465,6 @@ export class MeshVisualizers {
                 return;
             case 'fractal':
                 this.renderFractal(audioData, metadata);
-                return;
-            case 'tunnel':
-                this.renderTunnel(audioData, metadata);
-                return;
-            case 'depthlines':
-                this.renderDepthLines(audioData, metadata);
                 return;
             case 'warptunnel':
                 this.renderWarpTunnel(audioData, metadata);
@@ -1374,57 +1368,6 @@ export class MeshVisualizers {
     }
 
     /**
-     * Tunnel Portal - 3D tunnel effect
-     */
-    renderTunnel(audioData, metadata) {
-        const { frequencyData, timeData, bufferLength } = audioData;
-        const centerX = this.width / 2;
-        const centerY = this.height / 2;
-        const rings = 30;
-        const segments = 32;
-
-        for (let ring = 0; ring < rings; ring++) {
-            const depth = ring / rings;
-            const radius = depth * Math.min(this.width, this.height) * 0.5;
-            const z = depth * 10;
-            const scale = 1 / (1 + z * 0.1);
-
-            const freqIndex = Math.floor((ring / rings) * bufferLength);
-            const energy = frequencyData[freqIndex] / 255;
-            const wave = (timeData[freqIndex] / 128.0 - 1) * 50;
-
-            for (let seg = 0; seg < segments; seg++) {
-                const angle = (seg / segments) * Math.PI * 2 + this.time * 2 + depth * Math.PI;
-                const baseRadius = radius + wave * scale;
-                const x = centerX + Math.cos(angle) * baseRadius * scale;
-                const y = centerY + Math.sin(angle) * baseRadius * scale;
-
-                const hue = (ring / rings) * 360 + (seg / segments) * 60 + this.time * 40;
-                const size = (3 + energy * 12) * scale;
-
-                this.ctx.fillStyle = `hsla(${hue}, 100%, ${50 + energy * 30}%, ${0.5 + depth * 0.5})`;
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, size, 0, Math.PI * 2);
-                this.ctx.fill();
-
-                // Connect segments
-                if (seg > 0) {
-                    const prevAngle = ((seg - 1) / segments) * Math.PI * 2 + this.time * 2 + depth * Math.PI;
-                    const prevX = centerX + Math.cos(prevAngle) * baseRadius * scale;
-                    const prevY = centerY + Math.sin(prevAngle) * baseRadius * scale;
-
-                    this.ctx.strokeStyle = `hsla(${hue}, 100%, 60%, ${0.3 + depth * 0.3})`;
-                    this.ctx.lineWidth = (1 + energy) * scale;
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(prevX, prevY);
-                    this.ctx.lineTo(x, y);
-                    this.ctx.stroke();
-                }
-            }
-        }
-    }
-
-    /**
      * Morphing Shapes - Geometric shapes that morph
      */
     deformMorphingMesh(mesh, audioData, metadata) {
@@ -2003,11 +1946,8 @@ export class MeshVisualizers {
         }
     }
 
-    /**
-     * Authentic Tunnel Journey - Travel through a dynamic music-reactive tunnel
-     * Tunnel narrows/broadens and pulses with the music
-     */
-    renderDepthLines(audioData, metadata) {
+    // Legacy depth-journey effect (unused)
+    renderLegacyDepthJourney(audioData, metadata) {
         if (!audioData || !audioData.frequencyData) return;
         const { frequencyData, timeData, bufferLength } = audioData;
         const centerX = this.width / 2;

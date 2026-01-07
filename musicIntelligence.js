@@ -431,11 +431,11 @@ export class MusicIntelligence {
 
         const visualizerMappings = {
             drop: ['mercuryOrbs', 'liquidMetal', 'starburst', 'combined'],
-            buildup: ['tunnel', 'spiral1', 'warptunnel', 'nestedSpirals'],
+            buildup: ['spiral1', 'warptunnel', 'nestedSpirals'],
             chorus: ['kaleidoscope', 'mandala', 'tornado'],
             verse: ['flowing', 'wave', 'ripple'],
             breakdown: ['fractal'],
-            intro: ['depthlines', 'horizongrid', 'flowing'],
+            intro: ['horizongrid', 'flowing'],
             unknown: ['tornado', 'cyclone', 'wave']
         };
 

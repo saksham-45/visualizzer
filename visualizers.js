@@ -313,9 +313,6 @@ export class Visualizers {
     }
 
     setVisualizer(type) {
-        // Alias depthlines to new 3D tunnel
-        if (type === 'depthlines') type = 'tunnel';
-
         if (this.currentVisualizer === type) return;
 
         // FIX: If already transitioning, snap to the current target immediately 

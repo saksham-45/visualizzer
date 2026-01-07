@@ -526,6 +526,10 @@ export class ThreeJSVisualizer {
         if (mode === 'tunnel' || mode === 'depthlines') {
             // CRITICAL: Set black background for tunnel mode
             this.scene.background = new THREE.Color(0x000000);
+
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:setMode:tunnel',message:'Entering tunnel mode',data:{mode:this.mode,camera:{near:this.camera?.near,far:this.camera?.far,fov:this.camera?.fov,pos:{x:this.camera?.position?.x,y:this.camera?.position?.y,z:this.camera?.position?.z}},hasTunnelGroup:!!this.tunnelGroup},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix-1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             
             // CINEMATIC TUNNEL LIGHTING - Subtle and moody
             if (!this.tunnelLight) {
@@ -617,6 +621,11 @@ export class ThreeJSVisualizer {
 
         // Handle tunnel mode
         if (this.mode === 'tunnel' || this.mode === 'depthlines') {
+            // #region agent log
+            if (this._frame % 120 === 0) {
+                fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:update:tunnel',message:'Pre updateTunnel',data:{frame:this._frame,mode:this.mode,audio:{bass,mid,high,amplitude},camera:{near:this.camera?.near,far:this.camera?.far,fov:this.camera?.fov,pos:{x:this.camera?.position?.x,y:this.camera?.position?.y,z:this.camera?.position?.z}}},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix-1',hypothesisId:'E'})}).catch(()=>{});
+            }
+            // #endregion
             this.updateTunnel(time, bass, mid, high, amplitude);
             
             // Reduce bloom for tunnel mode - prevents flashy white
@@ -1035,6 +1044,10 @@ export class ThreeJSVisualizer {
         }
         
         this.tunnelGroup.visible = true;
+
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:createTunnel:exit',message:'Tunnel created',data:{tunnelLength:2000,radius:15,ringCount:this.tunnelRings?.length,ringBaseZ0:this.tunnelRings?.[0]?.userData?.baseZ,ringBaseZLast:this.tunnelRings?.[this.tunnelRings?.length-1]?.userData?.baseZ,cameraFar:this.camera?.far},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix-1',hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
     }
     
     createHyperspaceParticles() {
@@ -1080,12 +1093,16 @@ export class ThreeJSVisualizer {
     }
 
     updateTunnel(time, bass, mid, high, amp) {
-        if (!this.tunnelGroup || !this.camera) {
-            if (!this.tunnelGroup) {
-            this.createTunnel();
+        try {
+            if (!this.tunnelGroup || !this.camera) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:earlyReturn',message:'Missing tunnelGroup/camera',data:{hasTunnelGroup:!!this.tunnelGroup,hasCamera:!!this.camera,mode:this.mode},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix-1',hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
+                if (!this.tunnelGroup) {
+                    this.createTunnel();
+                }
+                return;
             }
-            return;
-        }
 
         // Audio reactivity - clamped but still responsive
         const clampedBass = Math.min(1.2, bass);
@@ -1114,6 +1131,8 @@ export class ThreeJSVisualizer {
         const tilt = Math.cos(time * 0.3) * 0.2;
         this.camera.position.x = sway * (1 + clampedBass * 0.5);
         this.camera.position.y = tilt * (1 + clampedMid * 0.3);
+        // Keep orientation consistent after sway
+        this.camera.lookAt(0, 0, -100);
 
         // ========== NEON RINGS - INFINITE LOOP ==========
         const ringSpacing = 16; // Match createTunnel
@@ -1155,6 +1174,15 @@ export class ThreeJSVisualizer {
                 ring.rotation.z += (0.015 + clampedHigh * 0.025) * (i % 2 === 0 ? 1 : -1);
             });
         }
+
+        // #region agent log
+        if (this._frame % 60 === 0) {
+            const ring0 = this.tunnelRings?.[0];
+            const wp = new THREE.Vector3();
+            if (ring0) ring0.getWorldPosition(wp);
+            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:sample',message:'Tunnel sample state',data:{frame:this._frame,tunnelZ:this.tunnelZ,groupZ:this.tunnelGroup?.position?.z,camera:{pos:{x:this.camera.position.x,y:this.camera.position.y,z:this.camera.position.z},far:this.camera.far},ring0:{localZ:ring0?.position?.z,baseZ:ring0?.userData?.baseZ,world:{x:wp.x,y:wp.y,z:wp.z}},totalRingDistance:this.tunnelRings?.length?this.tunnelRings.length*16:0},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix-1',hypothesisId:'A'})}).catch(()=>{});
+        }
+        // #endregion
 
         // ========== SPIRAL LINES - ROTATING ==========
         if (this.spiralLines) {
@@ -1238,6 +1266,11 @@ export class ThreeJSVisualizer {
         if (Math.abs(this.camera.fov - targetFOV) > 0.5) {
             this.camera.fov += (targetFOV - this.camera.fov) * 0.1;
             this.camera.updateProjectionMatrix();
+        }
+        } catch (e) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:updateTunnel:catch',message:'Exception in updateTunnel',data:{name:e?.name,message:e?.message,stack:(e?.stack||'').slice(0,500)},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix-1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
         }
     }
 

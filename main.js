@@ -130,6 +130,13 @@ class VisualizerApp {
         this.visualizerSelect.addEventListener('change', (e) => {
             console.log('[main.js] Visualizer dropdown changed:', e.target.value);
 
+            // #region agent log
+            try {
+                const values = Array.from(this.visualizerSelect?.options || []).map(o => o?.value).filter(Boolean);
+                fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'main.js:attachEventListeners:vizChange',message:'Visualizer dropdown change',data:{selected:e.target.value,optionCount:values.length,hasTunnelOption:values.includes('tunnel'),hasDepthlinesOption:values.includes('depthlines')},timestamp:Date.now(),sessionId:'debug-session',runId:'remove-tunnel-1',hypothesisId:'S2'})}).catch(()=>{});
+            } catch (_) {}
+            // #endregion
+
             // Manual selection should disable Auto-Mode
             if (this.autoModeCheckbox) {
                 this.autoModeCheckbox.checked = false;

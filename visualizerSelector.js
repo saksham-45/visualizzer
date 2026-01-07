@@ -21,7 +21,7 @@ export class VisualizerSelector {
             'shader_psychedelicWaves', 'shader_neonVortex', 'shader_kaleidoscope',
             'shader_hypnoticSpiral', 'shader_electricStorm',
             // Premium Mercury/Fluid
-            'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel',
+            'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry',
             // Particles
             'gpuParticles',
             // Classic Effects
@@ -75,6 +75,10 @@ export class VisualizerSelector {
             }
 
             const nextVisualizer = this.allVisualizers[this.currentIndex];
+
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'visualizerSelector.js:selectVisualizer:switch',message:'Auto-selected visualizer',data:{nextVisualizer,index:this.currentIndex,total:this.allVisualizers.length,hasBeat:!!hasBeat,timeSinceLastSwitch},timestamp:Date.now(),sessionId:'debug-session',runId:'remove-tunnel-1',hypothesisId:'S1'})}).catch(()=>{});
+            // #endregion
 
             this.lastSwitchTime = Date.now();
             this.switchCount++;
@@ -132,7 +136,6 @@ export class VisualizerSelector {
             'liquidMetal': 'Ferrofluid - magnetically controlled metallic surface',
             'metallicNebula': 'Star Dust - cosmic metallic dust in a gravity well',
             'liquidGeometry': 'Chrome Morph - shapeshifting liquid crystals',
-            'tunnel': 'Wormhole (3D) - infinite folding passage through space-time',
 
             // Layered Masterpieces
             'layered_psychedelicStack': 'The God Stack - the ultimate multi-layered visual odyssey',
@@ -178,7 +181,7 @@ export class VisualizerSelector {
                 'gpuParticles'
             ],
             'Premium Fluid': [
-                'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry', 'tunnel'
+                'mercuryOrbs', 'liquidMetal', 'metallicNebula', 'liquidGeometry'
             ],
             '3D Geometry': [
                 'warptunnel', '3dbars', 'orbitlines', 'starburst', 'horizongrid'
