@@ -1206,36 +1206,37 @@ export class ThreeJSVisualizer {
             this.hyperspaceParticles.material.opacity = 0.7 + clampedAmp * 0.3;
         }
 
-        // ========== CENTER GLOW - Light at end of tunnel ==========
+        // ========== CENTER GLOW - Bright beckoning light ==========
         if (this.centerGlow) {
-            // Keep glow far ahead
-            this.centerGlow.position.z = -800;
+            // Keep glow ahead in the distance
+            this.centerGlow.position.z = -500;
             
-            // Pulsing glow
-            const glowPulse = 1 + Math.sin(time * 2) * 0.3 + clampedBass * 0.5;
+            // Dramatic pulsing glow
+            const glowPulse = 1.5 + Math.sin(time * 3) * 0.5 + clampedBass * 0.8;
             this.centerGlow.scale.setScalar(glowPulse);
             
-            // Color cycling
-            const glowHue = (time * 0.1) % 1;
-            this.centerGlow.material.color.setHSL(glowHue, 0.8, 0.8);
-            this.centerGlow.material.opacity = 0.6 + clampedAmp * 0.3;
+            // Fast rainbow color cycling
+            const glowHue = (time * 0.2) % 1;
+            this.centerGlow.material.color.setHSL(glowHue, 1.0, 0.7);
+            this.centerGlow.material.opacity = 0.8 + clampedAmp * 0.2;
         }
 
-        // ========== TUNNEL WALL COLOR ==========
+        // ========== TUNNEL WALL COLOR - Subtle shifting backdrop ==========
         if (this.tunnelMaterial) {
-            // Subtle color wash on walls
-            const wallHue = (time * 0.03) % 1;
-            this.tunnelMaterial.color.setHSL(wallHue, 0.3, 0.1);
+            // Deeper color wash on walls
+            const wallHue = (time * 0.05) % 1;
+            this.tunnelMaterial.color.setHSL(wallHue, 0.4, 0.08);
         }
 
-        // ========== TRIPPY CAMERA ROLL ==========
-        // Slow continuous roll for psychedelic effect
-        const targetRoll = Math.sin(time * 0.3) * 0.1 + Math.cos(time * 0.2) * 0.05;
-        this.camera.rotation.z += (targetRoll - this.camera.rotation.z) * 0.05;
+        // ========== TRIPPY CAMERA EFFECTS ==========
+        // Continuous roll for psychedelic disorientation
+        const targetRoll = Math.sin(time * 0.4) * 0.12 + Math.cos(time * 0.25) * 0.08;
+        this.camera.rotation.z += (targetRoll - this.camera.rotation.z) * 0.06;
         
-        // Wide FOV for immersive tunnel view
-        if (this.camera.fov !== 85) {
-            this.camera.fov = 85;
+        // FOV pulses slightly with bass for breathing effect
+        const targetFOV = 85 + clampedBass * 5;
+        if (Math.abs(this.camera.fov - targetFOV) > 0.5) {
+            this.camera.fov += (targetFOV - this.camera.fov) * 0.1;
             this.camera.updateProjectionMatrix();
         }
     }
