@@ -527,10 +527,6 @@ export class ThreeJSVisualizer {
             // CRITICAL: Set black background for tunnel mode
             this.scene.background = new THREE.Color(0x000000);
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/eeb7875f-ddb5-4163-80e4-6a51bef53458',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ThreeJSVisualizer.js:setMode:tunnel',message:'Setting tunnel mode - background set to black',data:{mode,tunnelGroupExists:!!this.tunnelGroup,tunnelMeshExists:!!this.tunnelMesh,sceneBackgroundSet:true,hasLights:!!this.tunnelLight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E,F,G'})}).catch(()=>{});
-            // #endregion
-            
             // CINEMATIC TUNNEL LIGHTING - Subtle and moody
             if (!this.tunnelLight) {
                 // Very dim ambient - mostly dark with accent highlights
