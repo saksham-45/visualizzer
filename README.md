@@ -2,6 +2,30 @@
 
 A real-time audio visualizer with intelligent, music-reactive visuals. Supports microphone and system audio with automatic visualizer selection.
 
+## Showcase: visualizzer × automix
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/saksham-45/automix-_./main/docs/media/preview_chrome_morph.gif" width="49%" alt="Chrome Morph">
+  <img src="https://raw.githubusercontent.com/saksham-45/automix-_./main/docs/media/preview_liquid_metal.gif" width="49%" alt="Liquid Metal">
+</p>
+
+These are 1080p60 music videos: visualizzer reacting to mixes made by
+[automix](https://github.com/saksham-45/automix-_.), my AI DJ engine. The modes shown
+are Chrome Morph, Neon Vortex, Mercury Orbs, Electric Storm, Liquid Metal and Hypnotic
+Spiral. **▶ [Watch the videos](https://github.com/saksham-45/automix-_./releases/tag/showcase-2026-11)**
+
+For the videos, the visualizer was rendered offline in headless Chrome, frame by frame,
+from analyser data computed off the mix (pipeline: `automix/video/`).
+
+Recent changes:
+- The beat-triggered center burst and flash effects are switched off in every mode
+  (`BeatEffects.DISABLED_EFFECTS`).
+- Glow is much lower: bloom 0.28 with a 0.92 threshold, and less inner glow and
+  emissive.
+- Chrome Morph, Liquid Metal, Mercury Orbs and Metallic Nebula keep their full audio
+  reactivity. Their expansion is soft-limited to 82% of the visible frame, so the
+  shapes never leave the screen.
+
 ## Role of Mathematics
 
 This project is fundamentally mathematical—audio signals are transformed into visuals through:

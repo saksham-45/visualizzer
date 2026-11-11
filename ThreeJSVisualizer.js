@@ -231,7 +231,7 @@ export class ThreeJSVisualizer {
         const glowMat = new THREE.MeshBasicMaterial({
             color: 0x4466ff,
             transparent: true,
-            opacity: 0.15,
+            opacity: 0.05,
             side: THREE.BackSide
         });
         this.innerGlow = new THREE.Mesh(glowGeo, glowMat);
@@ -353,9 +353,9 @@ export class ThreeJSVisualizer {
         // 1. Unreal Bloom - Subtle glow (reduced for tunnel mode)
         const bloomPass = new UnrealBloomPass(
             new THREE.Vector2(width, height),
-            0.6,   // strength - reduced
-            0.4,   // radius
-            0.85   // threshold - raised to reduce bloom on darker elements
+            0.28,  // strength - low: highlights sparkle without a haze ("gloom")
+            0.3,   // radius
+            0.92   // threshold - only the brightest specular hits bloom
         );
         this.composer.addPass(bloomPass);
         this.bloomPass = bloomPass;
@@ -636,8 +636,8 @@ export class ThreeJSVisualizer {
         } else {
             // Normal bloom for other modes
             if (this.bloomPass) {
-                this.bloomPass.strength = 0.6;
-                this.bloomPass.threshold = 0.85;
+                this.bloomPass.strength = 0.28;
+                this.bloomPass.threshold = 0.92;
             }
         }
 
@@ -695,6 +695,17 @@ export class ThreeJSVisualizer {
             noiseAmp = 0.35;
         }
 
+        // Keep the whole (scaled, displaced) mesh on screen: the largest radius that
+        // fits 82% of the visible half-extent at the camera distance, in either axis
+        // (so it also holds on a portrait phone screen).
+        const bounceScaleMax = 1.0 + 0.15 + 0.12;
+        const modeScale = this.mode === 'metallicNebula' ? 1.2 : 1.0;
+        const halfH = this.camera.position.length() * Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+        const halfMin = Math.min(halfH, halfH * this.camera.aspect);
+        const maxR = (0.82 * halfMin) / (bounceScaleMax * modeScale);
+        const knee = 0.75 * maxR;
+        const softLimit = (r) => (r <= knee ? r : knee + (maxR - knee) * Math.tanh((r - knee) / (maxR - knee)));
+
         // Vertex displacement - EXPANDS SURFACE COMPLEXITY
         for (let i = 0; i < posAttr.count; i++) {
             const idx = i * 3;
@@ -716,10 +727,12 @@ export class ThreeJSVisualizer {
             const nz = oz / len;
 
             const totalDistortion = (noise1 + highFreqNoise) * audioMod;
+            // radius after displacement, eased (never clipped) into the on-screen bound
+            const r = softLimit(Math.max(len * 0.55, len + totalDistortion));
 
-            posAttr.array[idx] = ox + nx * totalDistortion;
-            posAttr.array[idx + 1] = oy + ny * totalDistortion;
-            posAttr.array[idx + 2] = oz + nz * totalDistortion;
+            posAttr.array[idx] = nx * r;
+            posAttr.array[idx + 1] = ny * r;
+            posAttr.array[idx + 2] = nz * r;
         }
         posAttr.needsUpdate = true;
         if (this._frame % 2 === 0) this.mercuryMesh.geometry.computeVertexNormals();
@@ -748,17 +761,17 @@ export class ThreeJSVisualizer {
         material.metalness = 1.0 - (midVal * 0.2);
 
         // BEAT REACTIVE COLOR EMISSIONS
-        material.emissiveIntensity = 0.5 + (this.beatDecay * 4.0) + (bassVal * 2.0);
+        material.emissiveIntensity = 0.4 + (this.beatDecay * 1.4) + (bassVal * 0.6);
 
         // Mode-specific color shifts
         if (this.mode === 'metallicNebula') {
             const hue = (time * 0.03 + bassVal * 0.1 + this.beatDecay * 0.2) % 1;
             material.color.setHSL(hue, 0.7, 0.4);
-            material.emissive.setHSL((hue + 0.5) % 1, 0.9, 0.15 + this.beatDecay * 0.4);
+            material.emissive.setHSL((hue + 0.5) % 1, 0.9, 0.05 + this.beatDecay * 0.1);
         } else if (this.mode === 'liquidMetal') {
             const lavaRed = 0.0 + ampVal * 0.04 + this.beatDecay * 0.05;
-            material.color.setHSL(lavaRed, 1.0, 0.1 + ampVal * 0.1);
-            material.emissive.setHSL(0.04 + ampVal * 0.06, 1.0, 0.2 + bassVal * 0.5 + this.beatDecay * 0.5);
+            material.color.setHSL(lavaRed, 1.0, 0.12 + ampVal * 0.08);
+            material.emissive.setHSL(0.04 + ampVal * 0.06, 1.0, 0.07 + bassVal * 0.1 + this.beatDecay * 0.1);
         } else {
             // Default mercuryOrbs emission
             const beatHue = (time * 0.1 + this.beatDecay * 0.5) % 1;
@@ -767,7 +780,7 @@ export class ThreeJSVisualizer {
 
         // Inner glow updates
         if (this.innerGlow) {
-            this.innerGlow.material.opacity = 0.15 + this.beatDecay * 0.3 + bassVal * 0.15;
+            this.innerGlow.material.opacity = 0.04 + this.beatDecay * 0.08 + bassVal * 0.04;
             this.innerGlow.material.color.setHSL((time * 0.05 + this.beatDecay * 0.2) % 1, 0.8, 0.5);
             if (this.mode === 'liquidMetal') this.innerGlow.material.color.setHex(0xff3300);
         }

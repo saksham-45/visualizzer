@@ -58,6 +58,10 @@ export class BeatEffects {
      * Trigger effect based on type
      */
     trigger(effectType, options = {}) {
+        // Center bursts (rings + particle "fireworks" on kicks, drop explosions,
+        // shockwaves, streaks) and full-screen flashes are switched off for every
+        // visualizer: they cluttered the middle of the frame and washed it out.
+        if (BeatEffects.DISABLED_EFFECTS.has(effectType)) return;
         const centerX = options.x ?? this.width / 2;
         const centerY = options.y ?? this.height / 2;
         const intensity = options.intensity ?? 1.0;
@@ -653,3 +657,5 @@ export class BeatEffects {
         this.distortions = [];
     }
 }
+
+BeatEffects.DISABLED_EFFECTS = new Set(['beat', 'drop', 'shockwave', 'explosion', 'ripple', 'streak', 'flash']);
