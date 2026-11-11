@@ -5,14 +5,14 @@ A real-time audio visualizer with intelligent, music-reactive visuals. Supports 
 ## Showcase: visualizzer × automix
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/saksham-45/automix-_./main/docs/media/preview_chrome_morph.gif" width="49%" alt="Chrome Morph">
-  <img src="https://raw.githubusercontent.com/saksham-45/automix-_./main/docs/media/preview_liquid_metal.gif" width="49%" alt="Liquid Metal">
+  <img src="https://raw.githubusercontent.com/saksham-45/automix/main/docs/media/preview_chrome_morph.gif" width="49%" alt="Chrome Morph">
+  <img src="https://raw.githubusercontent.com/saksham-45/automix/main/docs/media/preview_liquid_metal.gif" width="49%" alt="Liquid Metal">
 </p>
 
 These are 1080p60 music videos: visualizzer reacting to mixes made by
-[automix](https://github.com/saksham-45/automix-_.), my AI DJ engine. The modes shown
+[automix](https://github.com/saksham-45/automix), my AI DJ engine. The modes shown
 are Chrome Morph, Neon Vortex, Mercury Orbs, Electric Storm, Liquid Metal and Hypnotic
-Spiral. **▶ [Watch the videos](https://github.com/saksham-45/automix-_./releases/tag/showcase-2026-11)**
+Spiral. **▶ [Watch the videos](https://github.com/saksham-45/automix/releases/tag/showcase-2026-11)**
 
 For the videos, the visualizer was rendered offline in headless Chrome, frame by frame,
 from analyser data computed off the mix (pipeline: `automix/video/`).
